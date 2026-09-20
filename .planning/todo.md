@@ -31,14 +31,14 @@ Done when: app runs on a real phone, tabs work, both themes look right, no secre
 ## PHASE 1 · Days 2-3 · Database and security
 
 ### 1A. Push the schema (10 migration files)
-- [ ] `npx supabase login`, then `npx supabase link --project-ref <DEV_REF>`
-- [ ] `npx supabase db push --dry-run`, read the list, then `npx supabase db push`
-- [ ] [S] If a file fails: paste the error + file to Sonnet. Edit the file only if it did not apply
-- [ ] Verify in SQL Editor: tables exist, RLS is on for every table (queries in the setup guide)
-- [ ] Create an email test user in Authentication > Users; confirm rows appear in
-      profiles, profile_private, discovery_settings, user_location (signup trigger works)
-- [ ] Verify migration 10 columns exist (`user_colleges.verified`, `verification_status`)
-- [ ] Commit `supabase/` including config.toml
+- [x] ~~`npx supabase login`, then `npx supabase link --project-ref <DEV_REF>`~~ — **Done** (Linked to Align-Beta)
+- [x] ~~`npx supabase db push --dry-run`, read the list, then `npx supabase db push`~~ — **Done** (Remote database is up to date)
+- [x] ~~[S] If a file fails: paste the error + file to Sonnet. Edit the file only if it did not apply~~ — **Done** (No failures)
+- [x] ~~Verify in SQL Editor: tables exist, RLS is on for every table (queries in the setup guide)~~ — **Done** (Verified via REST API)
+- [x] ~~Create an email test user in Authentication > Users; confirm rows appear in
+      profiles, profile_private, discovery_settings, user_location (signup trigger works)~~ — **Done**
+- [x] ~~Verify migration 10 columns exist (`user_colleges.verified`, `verification_status`)~~ — **Done**
+- [x] ~~Commit `supabase/` including config.toml~~ — **Done**
 
 ### 1B. Seed and tests
 - [ ] [X] Seed migration (`npx supabase migration new seed_geo`): all Indian states,
