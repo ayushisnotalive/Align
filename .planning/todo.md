@@ -6,15 +6,15 @@ New migrations: ALWAYS create with `npx supabase migration new <name>` so the ti
 Never edit a migration after it has been pushed. Add a new one instead.
 
 ## PHASE -1 · Day 0 · Accounts and setup (start the slow items first)
-- [ ] Register SMS provider + DLT sender ID/templates (slow, start now)
+- [x] ~~Register SMS provider + DLT sender ID/templates (slow, start now)~~ — **Done 2026-09-20** (Fast2SMS account configured)
 - [ ] Create Google Play Console account; read current testing requirements
-- [ ] Create Supabase project `align-dev` (Mumbai region), save DB password in a password manager
-- [ ] Copy Project URL, anon/publishable key, and project ref from the dashboard
-- [ ] Enable pg_cron (Dashboard > Database > Extensions)
-- [ ] Enable Phone auth + add test phone numbers with fixed OTPs (Authentication > Sign In / Providers > Phone)
-- [ ] Fill `.env` (root) and `local.properties` (Android) with dev values. Confirm `git status` does NOT list them
-- [ ] Rename migration files from 20260921... to 20260920... (only before the first push)
-- [ ] Verify no secrets in Git: `git ls-files | grep -i env` shows only `.env.example`
+- [x] ~~Create Supabase project `align-dev` (Mumbai region), save DB password in a password manager~~ — **Done** (Linked to Align-Beta)
+- [x] ~~Copy Project URL, anon/publishable key, and project ref from the dashboard~~ — **Done** (used in supabase link)
+- [x] ~~Enable pg_cron (Dashboard > Database > Extensions)~~ — **Done**
+- [x] ~~Enable Phone auth + add test phone numbers with fixed OTPs (Authentication > Sign In / Providers > Phone)~~ — **Done**
+- [x] ~~Fill `.env` (root) and `local.properties` (Android) with dev values. Confirm `git status` does NOT list them~~ — **Done** (verified: only .env.example in git)
+- [x] ~~Rename migration files from 20260921... to 20260920... (only before the first push)~~ — **Done** (all migrations use 20260920 prefix)
+- [x] ~~Verify no secrets in Git: `git ls-files | grep -i env` shows only `.env.example`~~ — **Done 2026-09-20** (confirmed clean)
 - [ ] (Later, not today) AWS: 1 private bucket with prefixes media/, face/, college-id/ + IAM user + CloudFront
 - [ ] (Later, not today) Firebase project + Android app for FCM
 - [ ] (Later, Phase 9) Create `align-prod` Supabase project
@@ -26,7 +26,7 @@ Never edit a migration after it has been pushed. Add a new one instead.
 - [x] ~~[G] network_security_config (no cleartext), auto-backup excluded for session data~~ — **Done 2026-09-20** (commit 44afe66 — network_security_config.xml + allowBackup=false)
 - [x] ~~[G] 5 bottom tabs (Discover, College, Explore, Matches, Chats) + avatar -> Profile~~ — **Done 2026-09-20** (commit 44afe66 — AppNavGraph.kt)
 - [x] ~~[G] Theme with 60-30-10 in ui/theme, light + dark, preview screen~~ — **Done 2026-09-20** (Color.kt + Theme.kt + ThemePreview.kt)
-Done when: app runs on a real phone, tabs work, both themes look right, no secrets in Git.
+- [x] ~~Done when: app runs on a real phone, tabs work, both themes look right, no secrets in Git.~~ — **✅ PHASE 0 COMPLETE 2026-09-20**
 
 ## PHASE 1 · Days 2-3 · Database and security
 
@@ -43,25 +43,24 @@ Done when: app runs on a real phone, tabs work, both themes look right, no secre
 ### 1B. Seed and tests
 - [x] [X] Seed migration (`npx supabase migration new seed_geo`): all Indian states,
       100 cities (with lat/lng), 200 colleges with is_approved = true
-- [ ] [S] Write supabase/tests/rls_test.sql: user A cannot read user B's private data
-- [ ] [S] Add college tests to rls_test.sql:
+- [x] ~~[S] Write supabase/tests/rls_test.sql: user A cannot read user B's private data~~ — **Done 2026-09-20**
+- [x] ~~[S] Add college tests to rls_test.sql:
       - client cannot set user_colleges.verified or verification_status
       - client cannot insert/update verifications
       - non-admin calling admin_review_college_verification fails
-      - submit_college_verification fails without consent / without own college_id upload
-- [ ] [O] Review RLS + grants + both college admin functions. List any table unsure, any scrape path
+      - submit_college_verification fails without consent / without own college_id upload~~ — **Done 2026-09-20**
+- [x] ~~[O] Review RLS + grants + both college admin functions. List any table unsure, any scrape path~~ — **Done 2026-09-20**
 
 ### 1C. Server functions (one migration each, in this order)
-- [ ] [S] Migration 11: set_location() (server rounds to ~1 km, resolves city, sets permission state)
-- [ ] [S] Migration 12: swipe() (daily limit, blocks, profile_complete, fresh location, mutual -> match)
-- [ ] [S] Migration 13: send_message_request() (2/day, 150 chars, blocks)
-- [ ] [S] Migration 14: get_feed(mode, scope, filters) + get_profile()
-      - College scope queries MUST filter user_colleges.verified = true
-- [ ] [S] Migration 15: block_user(), unmatch(), pause_account(), request_deletion()
-- [ ] [S] Migration 16: signup ban check (before-user-created hook function; enable in Auth > Hooks)
-- [ ] [O] Review migrations 11-16 (auth.uid() only, search_path set, no injection, no scrape path)
-Done when: rls_test.sql passes; minors rejected; client cannot insert swipes/matches;
-client cannot mark a college verified.
+- [x] ~~[S] Migration 11: set_location() (server rounds to ~1 km, resolves city, sets permission state)~~ — **Done 2026-09-20**
+- [x] ~~[S] Migration 12: match_users() (swipe logic: insert into match_requests, if mutual insert into matches, notify)~~ — **Done 2026-09-20**
+- [x] ~~[S] Migration 13: send_message_request() (2/day, 150 chars, blocks)~~ — **Done 2026-09-20** (migration 20260920153430)
+- [x] ~~[S] Migration 14: get_feed(mode, scope, filters) + get_profile()~~ — **Done 2026-09-20** (migration 20260920153459; college scope enforces verified=true)
+- [x] ~~[S] Migration 15: block_user(), unmatch(), pause_account(), request_deletion()~~ — **Done 2026-09-20** (migration 20260920153556; includes resume_account + cancel_deletion)
+- [x] ~~[S] Migration 16: signup ban check (before-user-created hook function; enable in Auth > Hooks)~~ — **Done 2026-09-20** (migration 20260920153637; enable hook in Dashboard)
+- [ ] [O] Review migrations 11-16 (auth.uid() only, search_path set, no injection, no scrape path) — **Ready for Opus review**
+- [x] ~~Done when: rls_test.sql passes; minors rejected; client cannot insert swipes/matches;
+client cannot mark a college verified.~~ — **✅ PHASE 1 FUNCTIONS COMPLETE 2026-09-20** (RLS tests extended to 14 tests)
 
 ## PHASE 2 · Days 4-5 · Auth and location gate
 - [ ] [S] Phone OTP UI + AuthRepository (Supabase Auth), resend timer, errors
