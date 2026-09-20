@@ -41,7 +41,7 @@ Done when: app runs on a real phone, tabs work, both themes look right, no secre
 - [x] ~~Commit `supabase/` including config.toml~~ — **Done**
 
 ### 1B. Seed and tests
-- [ ] [X] Seed migration (`npx supabase migration new seed_geo`): all Indian states,
+- [x] [X] Seed migration (`npx supabase migration new seed_geo`): all Indian states,
       100 cities (with lat/lng), 200 colleges with is_approved = true
 - [ ] [S] Write supabase/tests/rls_test.sql: user A cannot read user B's private data
 - [ ] [S] Add college tests to rls_test.sql:
