@@ -21,7 +21,7 @@ Never edit a migration after it has been pushed. Add a new one instead.
 
 ## PHASE 0 · Day 1 · Foundation
 - [x] ~~[G] Confirm the agent reads .cursorrules~~ — **Closed 2026-09-20.** No .cursorrules file exists; AGENTS.md is the canonical rulebook. Agent has read and acknowledged it.
-- [ ] [G] Android project skeleton: packages data/domain/ui/di, Hilt, Navigation
+- [x] ~~[G] Android project skeleton: packages data/domain/ui/di, Hilt, Navigation~~ — **Done 2026-09-20** (commit 44afe66)
 - [ ] [G] Build flavors dev/prod reading local.properties into BuildConfig
 - [ ] [G] network_security_config (no cleartext), auto-backup excluded for session data
 - [ ] [G] 5 bottom tabs (Discover, College, Explore, Matches, Chats) + avatar -> Profile
