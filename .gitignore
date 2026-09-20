@@ -12,3 +12,5 @@ build/
 .DS_Store
 supabase/.branches
 supabase/.temp
+test-signup.mjs
+test-db.mjs
