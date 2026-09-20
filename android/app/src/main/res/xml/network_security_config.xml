@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SECURITY: Disables all cleartext (HTTP) traffic for every domain.
+    All Supabase, CloudFront, and FCM traffic is HTTPS.
+    If a WebView is ever added it must be explicitly approved and listed here.
+    (AGENTS.md §5 — Network: cleartextTrafficPermitted=false)
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

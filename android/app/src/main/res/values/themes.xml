@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        XML theme for the system window before Compose takes over.
+        No action bar. Compose's AlignTheme handles all Material3 styling.
+    -->
+    <style name="Theme.Align" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background_light</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
+    <!-- 60% light background from prd.md design system -->
+    <color name="window_background_light">#FFF8F5</color>
+    <!-- Launcher icon background — accent from design system -->
+    <color name="ic_launcher_background">#FF4D6D</color>
+</resources>
