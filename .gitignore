@@ -1,0 +1,14 @@
+.env
+.env.*
+!.env.example
+supabase/.env
+local.properties
+*.jks
+*.keystore
+google-services.json
+.gradle/
+build/
+.idea/
+.DS_Store
+supabase/.branches
+supabase/.temp
