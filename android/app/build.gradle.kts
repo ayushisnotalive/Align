@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
 }
@@ -128,4 +129,30 @@ dependencies {
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
+    implementation(libs.hilt.work)
+    ksp(libs.hilt.work.compiler)
+
+    // Supabase SDK (Auth + PostgREST + Realtime)
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.realtime)
+    implementation(libs.ktor.client.okhttp)
+
+    // Serialization
+    implementation(libs.kotlinx.serialization.json)
+
+    // Session security: EncryptedSharedPreferences for auth tokens
+    implementation(libs.androidx.security.crypto)
+
+    // DataStore for lightweight preferences (onboarding step, consent flags)
+    implementation(libs.androidx.datastore.prefs)
+
+    // Play Services Location (coarse location for set_location())
+    implementation(libs.play.services.location)
+
+    // Runtime permission helpers
+    implementation(libs.accompanist.permissions)
+    
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
 }

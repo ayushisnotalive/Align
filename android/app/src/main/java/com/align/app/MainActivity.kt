@@ -4,9 +4,14 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.align.app.data.location.LocationWorker
 import com.align.app.ui.AppNavGraph
 import com.align.app.ui.theme.AlignTheme
 import dagger.hilt.android.AndroidEntryPoint
+import java.util.concurrent.TimeUnit
 
 /**
  * Single-activity host for the entire app.
@@ -27,6 +32,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Enqueue periodic location updates
+        val locationWorkRequest = PeriodicWorkRequestBuilder<LocationWorker>(15, TimeUnit.MINUTES)
+            .build()
+            
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            LocationWorker.WORK_NAME,
+            ExistingPeriodicWorkPolicy.KEEP,
+            locationWorkRequest
+        )
+        
         setContent {
             AlignTheme {
                 AppNavGraph()

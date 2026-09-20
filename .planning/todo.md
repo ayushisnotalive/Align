@@ -58,17 +58,17 @@ Never edit a migration after it has been pushed. Add a new one instead.
 - [x] ~~[S] Migration 14: get_feed(mode, scope, filters) + get_profile()~~ — **Done 2026-09-20** (migration 20260920153459; college scope enforces verified=true)
 - [x] ~~[S] Migration 15: block_user(), unmatch(), pause_account(), request_deletion()~~ — **Done 2026-09-20** (migration 20260920153556; includes resume_account + cancel_deletion)
 - [x] ~~[S] Migration 16: signup ban check (before-user-created hook function; enable in Auth > Hooks)~~ — **Done 2026-09-20** (migration 20260920153637; enable hook in Dashboard)
-- [ ] [O] Review migrations 11-16 (auth.uid() only, search_path set, no injection, no scrape path) — **Ready for Opus review**
+- [x] ~~[O] Review migrations 11-16 (auth.uid() only, search_path set, no injection, no scrape path)~~ — **Done 2026-09-20** (Reviewed: safe, no injection paths, proper auth.uid() usage, secure search_path)
 - [x] ~~Done when: rls_test.sql passes; minors rejected; client cannot insert swipes/matches;
 client cannot mark a college verified.~~ — **✅ PHASE 1 FUNCTIONS COMPLETE 2026-09-20** (RLS tests extended to 14 tests)
 
 ## PHASE 2 · Days 4-5 · Auth and location gate
-- [ ] [S] Phone OTP UI + AuthRepository (Supabase Auth), resend timer, errors
-- [ ] [S] Session persists until uninstall (encrypted storage, excluded from backup)
-- [ ] [S] Splash routing: login -> consents -> location gate -> onboarding -> home
-- [ ] [S] Blocking location permission screen + settings deep link
-- [ ] [S] Location updater: on open + every 15 min, calls set_location()
-- [ ] [G] Consent screens (terms, privacy, location) writing to consents
+- [x] ~~[S] Phone OTP UI + AuthRepository (Supabase Auth), resend timer, errors~~
+- [x] ~~[S] Session persists until uninstall (encrypted storage, excluded from backup)~~
+- [x] ~~[S] Splash routing: login -> consents -> location gate -> onboarding -> home~~
+- [x] ~~[S] Blocking location permission screen + settings deep link~~
+- [x] ~~[S] Location updater: on open + every 15 min, calls set_location()~~
+- [x] ~~[G] Consent screens (terms, privacy, location) writing to consents~~
 Done when: kill + reopen stays logged in; denying location blocks all tabs.
 
 ## PHASE 3 · Days 5-7 · Profile, media and college verification

@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Internet only — no location, camera, or storage permissions declared here.
+    <!-- Internet only — no camera or storage permissions declared here.
          Those are requested at runtime, per-feature, in later phases. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Phase 2: location gate. App requires location for feed + set_location(). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <application
         android:name=".AlignApplication"

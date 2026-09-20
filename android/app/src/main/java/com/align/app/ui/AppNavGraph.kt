@@ -24,6 +24,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
+import com.align.app.ui.splash.SplashViewModel
+import com.align.app.ui.auth.LoginScreen
+import com.align.app.ui.consent.ConsentScreen
+import com.align.app.ui.location.LocationScreen
 
 // ── Route constants ───────────────────────────────────────────────────────────
 
@@ -32,6 +39,11 @@ import androidx.navigation.compose.rememberNavController
  * literal — always use [Routes].
  */
 object Routes {
+    const val SPLASH   = "splash"
+    const val LOGIN    = "login"
+    const val CONSENT  = "consent"
+    const val LOCATION_GATE = "location_gate"
+    
     const val DISCOVER = "discover"
     const val COLLEGE  = "college"
     const val EXPLORE  = "explore"
@@ -89,8 +101,10 @@ fun AppNavGraph() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // Profile hides the bottom bar; every other destination shows it.
-    val showBottomBar = currentDestination?.route != Routes.PROFILE
+    // Top-level tabs only show bottom bar
+    val showBottomBar = currentDestination?.route in listOf(
+        Routes.DISCOVER, Routes.COLLEGE, Routes.EXPLORE, Routes.MATCHES, Routes.CHATS
+    )
 
     Scaffold(
         bottomBar = {
@@ -121,9 +135,51 @@ fun AppNavGraph() {
     ) { innerPadding ->
         NavHost(
             navController    = navController,
-            startDestination = Routes.DISCOVER,
+            startDestination = Routes.SPLASH,
             modifier         = Modifier.padding(innerPadding),
         ) {
+            composable(Routes.SPLASH) {
+                val splashViewModel = hiltViewModel<SplashViewModel>()
+                val startDestination by splashViewModel.startDestination.collectAsState()
+                
+                LaunchedEffect(startDestination) {
+                    startDestination?.let { dest ->
+                        navController.navigate(dest) {
+                            popUpTo(Routes.SPLASH) { inclusive = true }
+                        }
+                    }
+                }
+                
+                // Show a simple loading screen for splash
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("Align", style = androidx.compose.material3.MaterialTheme.typography.headlineLarge)
+                }
+            }
+            
+            composable(Routes.LOGIN) { 
+                LoginScreen(onLoginSuccess = {
+                    navController.navigate(Routes.CONSENT) {
+                        popUpTo(Routes.LOGIN) { inclusive = true }
+                    }
+                }) 
+            }
+            
+            composable(Routes.CONSENT) { 
+                ConsentScreen(onAllConsented = {
+                    navController.navigate(Routes.LOCATION_GATE) {
+                        popUpTo(Routes.CONSENT) { inclusive = true }
+                    }
+                }) 
+            }
+            
+            composable(Routes.LOCATION_GATE) { 
+                LocationScreen(onPermissionGranted = {
+                    navController.navigate(Routes.DISCOVER) {
+                        popUpTo(Routes.LOCATION_GATE) { inclusive = true }
+                    }
+                }) 
+            }
+
             composable(Routes.DISCOVER) { DiscoverScreen() }
             composable(Routes.COLLEGE)  { CollegeScreen() }
             composable(Routes.EXPLORE)  { ExploreScreen() }

@@ -3,6 +3,10 @@ package com.align.app
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp
 
+import androidx.work.Configuration
+import androidx.hilt.work.HiltWorkerFactory
+import javax.inject.Inject
+
 /**
  * Application entry point.
  *
@@ -16,4 +20,12 @@ import dagger.hilt.android.HiltAndroidApp
  * fine-grained control.
  */
 @HiltAndroidApp
-class AlignApplication : Application()
+class AlignApplication : Application(), Configuration.Provider {
+    
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
+}
