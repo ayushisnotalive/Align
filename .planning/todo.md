@@ -22,10 +22,10 @@ Never edit a migration after it has been pushed. Add a new one instead.
 ## PHASE 0 · Day 1 · Foundation
 - [x] ~~[G] Confirm the agent reads .cursorrules~~ — **Closed 2026-09-20.** No .cursorrules file exists; AGENTS.md is the canonical rulebook. Agent has read and acknowledged it.
 - [x] ~~[G] Android project skeleton: packages data/domain/ui/di, Hilt, Navigation~~ — **Done 2026-09-20** (commit 44afe66)
-- [ ] [G] Build flavors dev/prod reading local.properties into BuildConfig
-- [ ] [G] network_security_config (no cleartext), auto-backup excluded for session data
-- [ ] [G] 5 bottom tabs (Discover, College, Explore, Matches, Chats) + avatar -> Profile
-- [ ] [G] Theme with 60-30-10 in ui/theme, light + dark, preview screen
+- [x] ~~[G] Build flavors dev/prod reading local.properties into BuildConfig~~ — **Done 2026-09-20** (gradle.properties + productFlavors)
+- [x] ~~[G] network_security_config (no cleartext), auto-backup excluded for session data~~ — **Done 2026-09-20** (commit 44afe66 — network_security_config.xml + allowBackup=false)
+- [x] ~~[G] 5 bottom tabs (Discover, College, Explore, Matches, Chats) + avatar -> Profile~~ — **Done 2026-09-20** (commit 44afe66 — AppNavGraph.kt)
+- [x] ~~[G] Theme with 60-30-10 in ui/theme, light + dark, preview screen~~ — **Done 2026-09-20** (Color.kt + Theme.kt + ThemePreview.kt)
 Done when: app runs on a real phone, tabs work, both themes look right, no secrets in Git.
 
 ## PHASE 1 · Days 2-3 · Database and security

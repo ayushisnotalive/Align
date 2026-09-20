@@ -22,6 +22,46 @@ android {
     namespace  = "com.align.app"
     compileSdk = 35
 
+    // ── Product flavors ───────────────────────────────────────────────────────
+    // Two environments share one codebase:
+    //   dev  — Supabase align-dev project. Used in all debug builds.
+    //   prod — Supabase align-prod project. Used in all release builds.
+    //
+    // Keys come from local.properties (gitignored). Flavors are the ONLY place
+    // that reads them; defaultConfig has no SUPABASE_* fields.
+    //
+    // local.properties format:
+    //   sdk.dir=…
+    //   dev.supabaseUrl=https://…dev….supabase.co
+    //   dev.supabaseKey=sb_publishable_…
+    //   prod.supabaseUrl=https://…prod….supabase.co
+    //   prod.supabaseKey=sb_publishable_…
+    // ─────────────────────────────────────────────────────────────────────────
+    flavorDimensions += "env"
+
+    productFlavors {
+        create("dev") {
+            dimension        = "env"
+            applicationIdSuffix = ".dev"          // install alongside prod
+            versionNameSuffix   = "-dev"
+            // Expose keys so the data layer can use BuildConfig.SUPABASE_URL.
+            buildConfigField("String", "SUPABASE_URL",
+                "\"${localProps["dev.supabaseUrl"] ?: localProps["supabaseUrl"] ?: ""}\"")
+            buildConfigField("String", "SUPABASE_ANON_KEY",
+                "\"${localProps["dev.supabaseKey"] ?: localProps["supabaseKey"] ?: ""}\"")
+            buildConfigField("Boolean", "IS_PROD", "false")
+        }
+        create("prod") {
+            dimension = "env"
+            // prod has no suffix — applicationId stays com.align.app.
+            buildConfigField("String", "SUPABASE_URL",
+                "\"${localProps["prod.supabaseUrl"] ?: localProps["supabaseUrl"] ?: ""}\"")
+            buildConfigField("String", "SUPABASE_ANON_KEY",
+                "\"${localProps["prod.supabaseKey"] ?: localProps["supabaseKey"] ?: ""}\"")
+            buildConfigField("Boolean", "IS_PROD", "true")
+        }
+    }
+
     defaultConfig {
         applicationId = "com.align.app"
         minSdk        = 26
@@ -29,12 +69,9 @@ android {
         versionCode   = 1
         versionName   = "0.1.0"
 
-        // Public keys — intentionally in BuildConfig.
-        buildConfigField("String", "SUPABASE_URL",      "\"${localProps["supabaseUrl"]  ?: ""}\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"${localProps["supabaseKey"] ?: ""}\"")
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
+        // No SUPABASE_* here — keys are flavor-specific above.
     }
 
     buildTypes {
@@ -49,8 +86,8 @@ android {
             )
         }
         debug {
-            isDebuggable        = true
-            applicationIdSuffix = ".debug"
+            isDebuggable = true
+            // applicationIdSuffix is already set per-flavor; don't add more here.
         }
     }
 
@@ -62,7 +99,7 @@ android {
 
     buildFeatures {
         compose     = true
-        buildConfig = true  // needed for SUPABASE_* fields
+        buildConfig = true  // required for SUPABASE_* and IS_PROD fields
     }
 
     packaging {
