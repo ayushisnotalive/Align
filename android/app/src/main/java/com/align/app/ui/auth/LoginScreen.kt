@@ -99,10 +99,12 @@ fun LoginScreen(
                 enter = fadeIn(),
                 exit = fadeOut(),
             ) {
-                PhoneInputSection(
+                EmailPhoneInputSection(
+                    email = uiState.email,
                     phone = uiState.phone,
                     isLoading = uiState.isLoading,
                     error = uiState.error,
+                    onEmailChanged = viewModel::onEmailChanged,
                     onPhoneChanged = viewModel::onPhoneChanged,
                     onSendOtp = viewModel::sendOtp,
                 )
@@ -114,7 +116,7 @@ fun LoginScreen(
                 exit = fadeOut(),
             ) {
                 OtpVerifySection(
-                    phone = uiState.formattedPhone,
+                    email = uiState.email,
                     otp = uiState.otp,
                     isLoading = uiState.isLoading,
                     error = uiState.error,
@@ -130,10 +132,12 @@ fun LoginScreen(
 }
 
 @Composable
-private fun PhoneInputSection(
+private fun EmailPhoneInputSection(
+    email: String,
     phone: String,
     isLoading: Boolean,
     error: String?,
+    onEmailChanged: (String) -> Unit,
     onPhoneChanged: (String) -> Unit,
     onSendOtp: () -> Unit,
 ) {
@@ -142,19 +146,34 @@ private fun PhoneInputSection(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Text(
-            text = "Enter your phone number",
+            text = "Create your account",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "We'll send you a verification code via SMS",
+            text = "We'll send you a verification code via Email",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
 
         Spacer(Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = email,
+            onValueChange = onEmailChanged,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("Email address") },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Next,
+            ),
+            singleLine = true,
+            isError = error != null,
+        )
+
+        Spacer(Modifier.height(16.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -194,7 +213,7 @@ private fun PhoneInputSection(
         Button(
             onClick = onSendOtp,
             modifier = Modifier.fillMaxWidth().height(48.dp),
-            enabled = phone.length >= 10 && !isLoading,
+            enabled = phone.length >= 10 && email.isNotEmpty() && !isLoading,
         ) {
             if (isLoading) {
                 CircularProgressIndicator(
@@ -211,7 +230,7 @@ private fun PhoneInputSection(
 
 @Composable
 private fun OtpVerifySection(
-    phone: String,
+    email: String,
     otp: String,
     isLoading: Boolean,
     error: String?,
@@ -234,7 +253,7 @@ private fun OtpVerifySection(
             }
             Spacer(Modifier.width(8.dp))
             Text(
-                text = "Verify your number",
+                text = "Verify your email",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -242,10 +261,18 @@ private fun OtpVerifySection(
 
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Enter the 6-digit code sent to $phone",
+            text = "Enter the 6-digit code sent to your email",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = email,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Medium,
         )
 
         Spacer(Modifier.height(24.dp))

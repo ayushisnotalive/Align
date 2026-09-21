@@ -16,16 +16,16 @@ interface AuthRepository {
     val authState: Flow<AuthState>
 
     /**
-     * Send OTP to [phone]. Format: +91XXXXXXXXXX (E.164).
-     * @return Result wrapping the phone on success or an error message.
+     * Send OTP to [email]. Also collects [phone] to be attached to user metadata.
+     * @return Result wrapping the email on success or an error message.
      */
-    suspend fun sendOtp(phone: String): Result<String>
+    suspend fun sendOtp(email: String, phone: String): Result<String>
 
     /**
-     * Verify the OTP code for the given phone.
+     * Verify the OTP code for the given email.
      * On success the session is automatically persisted.
      */
-    suspend fun verifyOtp(phone: String, code: String): Result<Unit>
+    suspend fun verifyOtp(email: String, code: String): Result<Unit>
 
     /** Sign out and clear stored session. */
     suspend fun signOut(): Result<Unit>

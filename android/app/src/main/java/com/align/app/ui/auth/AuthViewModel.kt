@@ -43,12 +43,23 @@ class AuthViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(phone = phone, error = null)
     }
 
+    fun onEmailChanged(email: String) {
+        _uiState.value = _uiState.value.copy(email = email, error = null)
+    }
+
     fun onOtpChanged(otp: String) {
         _uiState.value = _uiState.value.copy(otp = otp, error = null)
     }
 
     fun sendOtp() {
         val phone = _uiState.value.phone.trim()
+        val email = _uiState.value.email.trim()
+
+        if (!email.endsWith("@gmail.com", ignoreCase = true) && !email.endsWith("@yahoo.com", ignoreCase = true)) {
+            _uiState.value = _uiState.value.copy(error = "Only @gmail.com and @yahoo.com emails are accepted")
+            return
+        }
+
         if (phone.length < 10) {
             _uiState.value = _uiState.value.copy(error = "Enter a valid 10-digit phone number")
             return
@@ -58,7 +69,7 @@ class AuthViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            authRepo.sendOtp(formattedPhone)
+            authRepo.sendOtp(email, formattedPhone)
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -79,7 +90,7 @@ class AuthViewModel @Inject constructor(
 
     fun verifyOtp() {
         val otp = _uiState.value.otp.trim()
-        val phone = _uiState.value.formattedPhone
+        val email = _uiState.value.email.trim()
 
         if (otp.length != 6) {
             _uiState.value = _uiState.value.copy(error = "Enter the 6-digit code")
@@ -88,7 +99,7 @@ class AuthViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            authRepo.verifyOtp(phone, otp)
+            authRepo.verifyOtp(email, otp)
                 .onSuccess {
                     _uiState.value = _uiState.value.copy(isLoading = false)
                 }
@@ -129,6 +140,7 @@ class AuthViewModel @Inject constructor(
  * UI state for auth screens. Single source of truth (AGENTS.md §ARCHITECTURE).
  */
 data class AuthUiState(
+    val email: String = "",
     val phone: String = "",
     val otp: String = "",
     val formattedPhone: String = "",

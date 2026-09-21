@@ -31,18 +31,21 @@ class AuthRepositoryImpl @Inject constructor(
     private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     override val authState: Flow<AuthState> = _authState.asStateFlow()
 
-    override suspend fun sendOtp(phone: String): Result<String> = runCatching {
+    override suspend fun sendOtp(email: String, phone: String): Result<String> = runCatching {
         auth.signInWith(OTP) {
-            this.phone = phone
+            this.email = email
+            this.data = kotlinx.serialization.json.buildJsonObject {
+                put("phone", kotlinx.serialization.json.JsonPrimitive(phone))
+            }
         }
-        _authState.value = AuthState.OtpSent(phone)
-        phone
+        _authState.value = AuthState.OtpSent(email)
+        email
     }
 
-    override suspend fun verifyOtp(phone: String, code: String): Result<Unit> = runCatching {
-        auth.verifyPhoneOtp(
-            type = OtpType.Phone.SMS,
-            phone = phone,
+    override suspend fun verifyOtp(email: String, code: String): Result<Unit> = runCatching {
+        auth.verifyEmailOtp(
+            type = OtpType.Email.MAGIC_LINK,
+            email = email,
             token = code,
         )
         // Session is automatically set by supabase-kt after successful verification.
