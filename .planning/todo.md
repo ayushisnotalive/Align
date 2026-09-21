@@ -76,7 +76,7 @@ Done when: kill + reopen stays logged in; denying location blocks all tabs.
 - [x] ~~[S] Edge Function: presigned S3 upload (auth, mime, size, photo count, kind: profile_photo | chat_image | college_id)
       - college_id goes to the private college-id/ prefix, not the public media path~~ — **Done 2026-09-21** (`presigned-upload` edge fn, `npm:` imports, `Deno.serve`)
 - [x] ~~[S] Edge Function: post-upload processing (EXIF strip, resize, media row)~~ — **Done 2026-09-21** (handled client-side via Bitmap re-encode in `MediaRepositoryImpl`)
-- [ ] [O] Review S3 + Edge Function security
+- [x] ~~[O] Review S3 + Edge Function security~~ — **Done 2026-09-21**
 - [x] ~~[G] Photo gallery (3-6, reorder, delete)~~ — **Done 2026-09-21** (`PhotoGalleryScreen`, PickVisualMedia, Coil)
 - [x] ~~[G] College picker (state > city > college search + request missing college)~~ — **Done 2026-09-21** (`CollegePickerScreen`)
 - [x] ~~[G] "Verify your college" screen:
