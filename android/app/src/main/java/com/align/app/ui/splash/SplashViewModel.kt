@@ -6,6 +6,7 @@ import com.align.app.domain.auth.AuthRepository
 import com.align.app.domain.auth.AuthState
 import com.align.app.domain.consent.ConsentRepository
 import com.align.app.domain.location.LocationRepository
+import com.align.app.domain.profile.ProfileRepository
 import com.align.app.ui.Routes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +20,8 @@ import javax.inject.Inject
 class SplashViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val consentRepository: ConsentRepository,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val profileRepository: ProfileRepository
 ) : ViewModel() {
 
     private val _startDestination = MutableStateFlow<String?>(null)
@@ -52,9 +54,19 @@ class SplashViewModel @Inject constructor(
                 return@launch
             }
 
-            // 4. (Later in Phase 3) Check Onboarding status
-            // For now, go straight to home/Discover
-            _startDestination.value = Routes.DISCOVER
+            // 4. Check Onboarding status
+            val stepResult = profileRepository.getOnboardingStep()
+            val step = stepResult.getOrDefault(0)
+
+            _startDestination.value = when (step) {
+                0 -> Routes.ONBOARDING_BASIC_INFO
+                1 -> Routes.ONBOARDING_PHOTOS
+                2 -> Routes.ONBOARDING_COLLEGE
+                3 -> Routes.ONBOARDING_HOMETOWN
+                4 -> Routes.ONBOARDING_PLACES
+                5 -> Routes.ONBOARDING_ATTRIBUTES
+                else -> Routes.DISCOVER
+            }
         }
     }
 }

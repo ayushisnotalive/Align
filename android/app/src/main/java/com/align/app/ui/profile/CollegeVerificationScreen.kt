@@ -14,15 +14,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 
 @Composable
 fun CollegeVerificationScreen(
+    collegeId: Int,
     collegeName: String,
-    onSubmitVerification: (Uri) -> Unit,
+    onVerificationSubmitted: () -> Unit,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var selectedUri by remember { mutableStateOf<Uri?>(null) }
     
     val launcher = rememberLauncherForActivityResult(
@@ -53,6 +57,16 @@ fun CollegeVerificationScreen(
         
         Spacer(modifier = Modifier.height(32.dp))
         
+        if (uiState.isUploading) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        uiState.error?.let {
+            Text(text = it, color = MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -87,11 +101,21 @@ fun CollegeVerificationScreen(
         Spacer(modifier = Modifier.weight(1f))
         
         Button(
-            onClick = { selectedUri?.let { onSubmitVerification(it) } },
-            enabled = selectedUri != null,
+            onClick = {
+                selectedUri?.let { uri ->
+                    viewModel.uploadPhoto(uri, kind = "college_id") { mediaId ->
+                        if (mediaId != null) {
+                            viewModel.submitCollegeVerification(collegeId, mediaId) { success ->
+                                if (success) onVerificationSubmitted()
+                            }
+                        }
+                    }
+                }
+            },
+            enabled = selectedUri != null && !uiState.isUploading,
             modifier = Modifier.fillMaxWidth().height(50.dp)
         ) {
-            Text("Submit for Verification")
+            Text(if (uiState.isUploading) "Uploading..." else "Submit for Verification")
         }
     }
 }

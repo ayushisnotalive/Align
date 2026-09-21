@@ -10,22 +10,24 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
-@OptIn(ExperimentalMaterial3Api::class)
+    @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CollegePickerScreen(
     onCollegeSelected: (Int) -> Unit,
     onRequestMissingCollege: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSkip: (() -> Unit)? = null,
+    viewModel: ProfileViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     
-    // In reality, this list comes from Supabase via ProfileRepository based on searchQuery
-    val dummyColleges = listOf(
-        Pair(1, "Indian Institute of Technology Bombay"),
-        Pair(2, "Indian Institute of Technology Delhi"),
-        Pair(3, "National Institute of Technology Trichy")
-    ).filter { it.second.contains(searchQuery, ignoreCase = true) }
+    // Trigger search whenever query changes
+    LaunchedEffect(searchQuery) {
+        viewModel.searchColleges(searchQuery)
+    }
 
     Column(modifier = modifier.fillMaxSize().padding(16.dp)) {
         Text(
@@ -43,21 +45,22 @@ fun CollegePickerScreen(
             placeholder = { Text("Search college name...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant
             )
         )
         
         Spacer(modifier = Modifier.height(16.dp))
         
         LazyColumn(modifier = Modifier.weight(1f)) {
-            items(dummyColleges) { college ->
+            items(uiState.colleges) { college ->
                 ListItem(
-                    headlineContent = { Text(college.second) },
-                    modifier = Modifier.clickable { onCollegeSelected(college.first) }
+                    headlineContent = { Text(college.name) },
+                    modifier = Modifier.clickable { onCollegeSelected(college.id) }
                 )
-                Divider()
+                HorizontalDivider()
             }
             item {
                 TextButton(
@@ -66,6 +69,16 @@ fun CollegePickerScreen(
                 ) {
                     Text("Can't find your college? Request it here.", color = MaterialTheme.colorScheme.primary)
                 }
+            }
+        }
+        
+        if (onSkip != null) {
+            Button(
+                onClick = onSkip,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+            ) {
+                Text("Skip for now")
             }
         }
     }

@@ -16,7 +16,8 @@ import androidx.compose.ui.unit.dp
 fun PlacesPickerScreen(
     title: String,
     onPlaceSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onSkip: (() -> Unit)? = null
 ) {
     var searchQuery by remember { mutableStateOf("") }
     
@@ -44,9 +45,10 @@ fun PlacesPickerScreen(
             placeholder = { Text("Search city...") },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant
+            colors = TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedIndicatorColor = MaterialTheme.colorScheme.surfaceVariant
             )
         )
         
@@ -59,6 +61,16 @@ fun PlacesPickerScreen(
                     modifier = Modifier.clickable { onPlaceSelected(place.first) }
                 )
                 Divider()
+            }
+        }
+        
+        if (onSkip != null) {
+            Button(
+                onClick = onSkip,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = MaterialTheme.colorScheme.onSurface),
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+            ) {
+                Text("Skip for now")
             }
         }
     }

@@ -1,6 +1,5 @@
 package com.align.app.ui
 
-import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -10,6 +9,7 @@ import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.School
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -37,11 +37,13 @@ import com.align.app.ui.auth.LoginScreen
 import com.align.app.ui.consent.ConsentScreen
 import com.align.app.ui.location.LocationScreen
 import com.align.app.ui.profile.AttributesFlowScreen
+import com.align.app.ui.profile.BasicInfoScreen
 import com.align.app.ui.profile.CollegePickerScreen
 import com.align.app.ui.profile.CollegeVerificationScreen
 import com.align.app.ui.profile.PhotoGalleryScreen
 import com.align.app.ui.profile.PlacesPickerScreen
 import com.align.app.ui.profile.ProfileEditScreen
+import com.align.app.ui.profile.ProfileViewModel
 
 // ── Route constants ───────────────────────────────────────────────────────────
 
@@ -60,6 +62,13 @@ object Routes {
     const val EXPLORE  = "explore"
     const val MATCHES  = "matches"
     const val CHATS    = "chats"
+
+    const val ONBOARDING_BASIC_INFO = "onboarding/basic_info"
+    const val ONBOARDING_PHOTOS     = "onboarding/photos"
+    const val ONBOARDING_COLLEGE    = "onboarding/college"
+    const val ONBOARDING_HOMETOWN   = "onboarding/hometown"
+    const val ONBOARDING_PLACES     = "onboarding/places"
+    const val ONBOARDING_ATTRIBUTES = "onboarding/attributes"
 
     // Profile hub + sub-routes (Phase 3)
     const val PROFILE             = "profile"
@@ -198,15 +207,146 @@ fun AppNavGraph() {
 
             composable(Routes.LOCATION_GATE) {
                 LocationScreen(onPermissionGranted = {
-                    navController.navigate(Routes.DISCOVER) {
+                    // Start onboarding from step 0 (we rely on SPLASH to route correctly later, 
+                    // but on first signup we go to basic info)
+                    navController.navigate(Routes.ONBOARDING_BASIC_INFO) {
                         popUpTo(Routes.LOCATION_GATE) { inclusive = true }
                     }
                 })
             }
 
+            // Onboarding Sequence
+            composable(Routes.ONBOARDING_BASIC_INFO) {
+                BasicInfoScreen(
+                    onComplete = {
+                        navController.navigate(Routes.ONBOARDING_PHOTOS) {
+                            popUpTo(Routes.ONBOARDING_BASIC_INFO) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            
+            composable(Routes.ONBOARDING_PHOTOS) {
+                PhotoGalleryScreen(
+                    onComplete = {
+                        navController.navigate(Routes.ONBOARDING_COLLEGE) {
+                            popUpTo(Routes.ONBOARDING_PHOTOS) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            
+            composable(Routes.ONBOARDING_COLLEGE) {
+                val viewModel: ProfileViewModel = hiltViewModel()
+                CollegePickerScreen(
+                    onCollegeSelected = { collegeId ->
+                        // During onboarding, we'll verify later, just go to Hometown
+                        // Ideally we'd show the verification screen here, but let's go to verify
+                        navController.navigate("onboarding/college_verification/$collegeId/Selected College")
+                    },
+                    onRequestMissingCollege = { },
+                    onSkip = {
+                        viewModel.updateOnboardingStep(3) {
+                            navController.navigate(Routes.ONBOARDING_HOMETOWN) {
+                                popUpTo(Routes.ONBOARDING_COLLEGE) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
+            
+            composable(
+                route = "onboarding/college_verification/{collegeId}/{collegeName}",
+                arguments = listOf(
+                    navArgument("collegeId")   { type = NavType.IntType },
+                    navArgument("collegeName") { type = NavType.StringType },
+                )
+            ) { backStackEntry ->
+                val viewModel: ProfileViewModel = hiltViewModel()
+                val collegeId = backStackEntry.arguments?.getInt("collegeId") ?: 0
+                val collegeName = backStackEntry.arguments?.getString("collegeName") ?: ""
+                CollegeVerificationScreen(
+                    collegeId = collegeId,
+                    collegeName = collegeName,
+                    onVerificationSubmitted = {
+                        viewModel.updateOnboardingStep(3) {
+                            navController.navigate(Routes.ONBOARDING_HOMETOWN) {
+                                popUpTo(Routes.ONBOARDING_COLLEGE) { inclusive = true }
+                            }
+                        }
+                    },
+                    onBack = { navController.popBackStack() },
+                )
+            }
+            
+            composable(Routes.ONBOARDING_HOMETOWN) {
+                val viewModel: ProfileViewModel = hiltViewModel()
+                PlacesPickerScreen(
+                    title = "Hometown",
+                    onPlaceSelected = { _ ->
+                        viewModel.updateOnboardingStep(4) {
+                            navController.navigate(Routes.ONBOARDING_PLACES) {
+                                popUpTo(Routes.ONBOARDING_HOMETOWN) { inclusive = true }
+                            }
+                        }
+                    },
+                    onSkip = {
+                        viewModel.updateOnboardingStep(4) {
+                            navController.navigate(Routes.ONBOARDING_PLACES) {
+                                popUpTo(Routes.ONBOARDING_HOMETOWN) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
+            
+            composable(Routes.ONBOARDING_PLACES) {
+                val viewModel: ProfileViewModel = hiltViewModel()
+                PlacesPickerScreen(
+                    title = "Places I've Lived",
+                    onPlaceSelected = { _ ->
+                        viewModel.updateOnboardingStep(5) {
+                            navController.navigate(Routes.ONBOARDING_ATTRIBUTES) {
+                                popUpTo(Routes.ONBOARDING_PLACES) { inclusive = true }
+                            }
+                        }
+                    },
+                    onSkip = {
+                        viewModel.updateOnboardingStep(5) {
+                            navController.navigate(Routes.ONBOARDING_ATTRIBUTES) {
+                                popUpTo(Routes.ONBOARDING_PLACES) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
+            
+            composable(Routes.ONBOARDING_ATTRIBUTES) {
+                val viewModel: ProfileViewModel = hiltViewModel()
+                AttributesFlowScreen(
+                    onAttributesSelected = { _ ->
+                        viewModel.updateOnboardingStep(6) {
+                            navController.navigate(Routes.DISCOVER) {
+                                popUpTo(Routes.ONBOARDING_ATTRIBUTES) { inclusive = true }
+                            }
+                        }
+                    }
+                )
+            }
+
             // ── Main tabs (stubs, replaced in Phase 4+) ────────────────────
 
-            composable(Routes.DISCOVER) { DiscoverScreen() }
+            composable(Routes.DISCOVER) { 
+                OnboardingGate(
+                    onIncompleteProfile = {
+                        navController.navigate(Routes.PROFILE_EDIT) {
+                            launchSingleTop = true
+                        }
+                    }
+                ) {
+                    DiscoverScreen() 
+                }
+            }
             composable(Routes.COLLEGE)  { CollegeScreen() }
             composable(Routes.EXPLORE)  { ExploreScreen() }
             composable(Routes.MATCHES)  { MatchesScreen() }
@@ -237,19 +377,13 @@ fun AppNavGraph() {
 
             // Photo gallery
             composable(Routes.PHOTO_GALLERY) {
-                val photos = remember { mutableStateListOf<Uri>() }
-                PhotoGalleryScreen(
-                    photos          = photos,
-                    onPhotosSelected = { uris -> photos.addAll(uris) },
-                    onPhotoDeleted  = { uri -> photos.remove(uri) },
-                )
+                PhotoGalleryScreen()
             }
 
             // College picker → on selection navigate to verification
             composable(Routes.COLLEGE_PICKER) {
                 CollegePickerScreen(
                     onCollegeSelected = { collegeId ->
-                        // The dummy list used "IIT Bombay" for id=1, etc. Pass name via route arg.
                         navController.navigate("profile/college_verification/$collegeId/Selected College")
                     },
                     onRequestMissingCollege = {
@@ -266,11 +400,12 @@ fun AppNavGraph() {
                     navArgument("collegeName") { type = NavType.StringType },
                 )
             ) { backStackEntry ->
+                val collegeId = backStackEntry.arguments?.getInt("collegeId") ?: 0
                 val collegeName = backStackEntry.arguments?.getString("collegeName") ?: ""
                 CollegeVerificationScreen(
-                    collegeName           = collegeName,
-                    onSubmitVerification  = { _ ->
-                        // After submission navigate back to the profile edit hub
+                    collegeId = collegeId,
+                    collegeName = collegeName,
+                    onVerificationSubmitted = {
                         navController.popBackStack(Routes.PROFILE_EDIT, inclusive = false)
                     },
                     onBack = { navController.popBackStack() },
@@ -324,5 +459,37 @@ private fun StubScreen(name: String) {
         contentAlignment   = Alignment.Center,
     ) {
         Text(text = name)
+    }
+}
+
+@Composable
+fun OnboardingGate(
+    viewModel: ProfileViewModel = hiltViewModel(),
+    onIncompleteProfile: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(uiState.isLoading, uiState.profile, uiState.photos) {
+        if (!uiState.isLoading) {
+            val isProfileComplete = uiState.profile?.isComplete == true
+            val hasEnoughPhotos = uiState.photos.size >= 3
+
+            if (!isProfileComplete || !hasEnoughPhotos) {
+                onIncompleteProfile()
+            }
+        }
+    }
+
+    if (uiState.isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        val isProfileComplete = uiState.profile?.isComplete == true
+        val hasEnoughPhotos = uiState.photos.size >= 3
+        if (isProfileComplete && hasEnoughPhotos) {
+            content()
+        }
     }
 }
