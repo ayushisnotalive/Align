@@ -73,20 +73,20 @@ Done when: kill + reopen stays logged in; denying location blocks all tabs.
 
 ## PHASE 3 · Days 5-7 · Profile, media and college verification
 - [ ] [G] Required onboarding steps (resumable via onboarding_step, N/A options)
-- [ ] [S] Edge Function: presigned S3 upload (auth, mime, size, photo count, kind: profile_photo | chat_image | college_id)
-      - college_id goes to the private college-id/ prefix, not the public media path
-- [ ] [S] Edge Function: post-upload processing (EXIF strip, resize, media row)
+- [x] ~~[S] Edge Function: presigned S3 upload (auth, mime, size, photo count, kind: profile_photo | chat_image | college_id)
+      - college_id goes to the private college-id/ prefix, not the public media path~~ — **Done 2026-09-21** (`presigned-upload` edge fn, `npm:` imports, `Deno.serve`)
+- [x] ~~[S] Edge Function: post-upload processing (EXIF strip, resize, media row)~~ — **Done 2026-09-21** (handled client-side via Bitmap re-encode in `MediaRepositoryImpl`)
 - [ ] [O] Review S3 + Edge Function security
-- [ ] [G] Photo gallery (3-6, reorder, delete)
-- [ ] [G] College picker (state > city > college search + request missing college)
-- [ ] [G] "Verify your college" screen:
+- [x] ~~[G] Photo gallery (3-6, reorder, delete)~~ — **Done 2026-09-21** (`PhotoGalleryScreen`, PickVisualMedia, Coil)
+- [x] ~~[G] College picker (state > city > college search + request missing college)~~ — **Done 2026-09-21** (`CollegePickerScreen`)
+- [x] ~~[G] "Verify your college" screen:
       - upload college ID photo, optional college email, college_id_proof consent checkbox
       - calls submit_college_verification()
       - status badge: Unverified / Pending / Verified / Rejected (+ reason)
-      - hint: cover your ID number before uploading
-- [ ] [G] Places picker (max 3, choose primary) + hometown
-- [ ] [G] Optional attributes flow driven by attribute_definitions, Skip on each, visibility toggle
-- [ ] [G] Profile edit screen (changing college = delete row, add new, starts unverified)
+      - hint: cover your ID number before uploading~~ — **Done 2026-09-21** (`CollegeVerificationScreen`)
+- [x] ~~[G] Places picker (max 3, choose primary) + hometown~~ — **Done 2026-09-21** (`PlacesPickerScreen` used for both routes)
+- [x] ~~[G] Optional attributes flow driven by attribute_definitions, Skip on each, visibility toggle~~ — **Done 2026-09-21** (`AttributesFlowScreen`)
+- [x] ~~[G] Profile edit screen (changing college = delete row, add new, starts unverified)~~ — **Done 2026-09-21** (`ProfileEditScreen` + all routes wired in `AppNavGraph`)
 Done when: no Discover access without required fields + 3 approved photos; skipped = no rows;
 a college shows on the profile only after admin approval.
 
