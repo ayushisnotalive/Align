@@ -1,7 +1,7 @@
 begin;
 
 -- Plan number of tests
-select plan(14);
+select plan(16);
 
 -- Create dummy users
 insert into auth.users (id, aud, role, email, phone) values 
@@ -116,15 +116,22 @@ select throws_like(
 
 -- ===== BAN CHECK TESTS =====
 
+-- Reset to superuser to call the function (it's only granted to supabase_auth_admin)
+reset role;
+
 -- 13. Signup ban check allows clean phone
 -- (We test the function directly since we can't trigger auth hooks in pgTAP)
 select is(
-  (public.check_signup_ban('{"user": {"phone": "+919999999999"}}'::jsonb))->>'decision',
+  (public.check_signup_ban('{"user": {"user_metadata": {"phone": "+919999999999"}}}'::jsonb))->>'decision',
   'continue',
   'clean phone number is allowed to sign up'
 );
 
 -- 14. Signup ban check rejects banned phone
+-- Reset to superuser to call the function (it's only granted to supabase_auth_admin)
+-- and to insert the ban
+reset role;
+
 -- First insert a ban for a known phone hash
 insert into public.bans (phone_hash, reason, created_by)
 values (
@@ -133,10 +140,8 @@ values (
   null
 );
 
--- Reset to superuser to call the function (it's only granted to supabase_auth_admin)
-reset role;
 select is(
-  (public.check_signup_ban('{"user": {"phone": "+918888888888"}}'::jsonb))->>'decision',
+  (public.check_signup_ban('{"user": {"user_metadata": {"phone": "+918888888888"}}}'::jsonb))->>'decision',
   'reject',
   'banned phone number is rejected at signup'
 );

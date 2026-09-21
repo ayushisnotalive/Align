@@ -1,5 +1,4 @@
 package com.align.app.data.auth
-
 import com.align.app.domain.auth.AuthRepository
 import com.align.app.domain.auth.AuthState
 import io.github.jan.supabase.auth.Auth
@@ -44,7 +43,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun verifyOtp(email: String, code: String): Result<Unit> = runCatching {
         auth.verifyEmailOtp(
-            type = OtpType.Email.MAGIC_LINK,
+            type = OtpType.Email.EMAIL,
             email = email,
             token = code,
         )

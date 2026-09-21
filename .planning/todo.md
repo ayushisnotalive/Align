@@ -41,8 +41,8 @@ Never edit a migration after it has been pushed. Add a new one instead.
 - [x] ~~Commit `supabase/` including config.toml~~ — **Done**
 
 ### 1B. Seed and tests
-- [x] [X] Seed migration (`npx supabase migration new seed_geo`): all Indian states,
-      100 cities (with lat/lng), 200 colleges with is_approved = true
+- [x] ~~[X] Seed migration (`npx supabase migration new seed_geo`): all Indian states,
+      100 cities (with lat/lng), 200 colleges with is_approved = true~~ — **Done**
 - [x] ~~[S] Write supabase/tests/rls_test.sql: user A cannot read user B's private data~~ — **Done 2026-09-20**
 - [x] ~~[S] Add college tests to rls_test.sql:
       - client cannot set user_colleges.verified or verification_status
@@ -60,7 +60,7 @@ Never edit a migration after it has been pushed. Add a new one instead.
 - [x] ~~[S] Migration 16: signup ban check (before-user-created hook function; enable in Auth > Hooks)~~ — **Done 2026-09-20** (migration 20260920153637; enable hook in Dashboard)
 - [x] ~~[O] Review migrations 11-16 (auth.uid() only, search_path set, no injection, no scrape path)~~ — **Done 2026-09-20** (Reviewed: safe, no injection paths, proper auth.uid() usage, secure search_path)
 - [x] ~~Done when: rls_test.sql passes; minors rejected; client cannot insert swipes/matches;
-client cannot mark a college verified.~~ — **✅ PHASE 1 FUNCTIONS COMPLETE 2026-09-20** (RLS tests extended to 14 tests)
+      client cannot mark a college verified.~~ — **✅ PHASE 1 FUNCTIONS COMPLETE 2026-09-20** (RLS tests extended to 16 tests, all passing 2026-09-21)
 
 ## PHASE 2 · Days 4-5 · Auth and location gate
 - [x] ~~[S] Phone OTP UI + AuthRepository (Supabase Auth), resend timer, errors~~
