@@ -72,7 +72,7 @@ Never edit a migration after it has been pushed. Add a new one instead.
 Done when: kill + reopen stays logged in; denying location blocks all tabs.
 
 ## PHASE 3 · Days 5-7 · Profile, media and college verification
-- [ ] [G] Required onboarding steps (resumable via onboarding_step, N/A options)
+- [x] [G] Required onboarding steps (resumable via onboarding_step, N/A options)
 - [x] ~~[S] Edge Function: presigned S3 upload (auth, mime, size, photo count, kind: profile_photo | chat_image | college_id)
       - college_id goes to the private college-id/ prefix, not the public media path~~ — **Done 2026-09-21** (`presigned-upload` edge fn, `npm:` imports, `Deno.serve`)
 - [x] ~~[S] Edge Function: post-upload processing (EXIF strip, resize, media row)~~ — **Done 2026-09-21** (handled client-side via Bitmap re-encode in `MediaRepositoryImpl`)
@@ -91,12 +91,12 @@ Done when: no Discover access without required fields + 3 approved photos; skipp
 a college shows on the profile only after admin approval.
 
 ## PHASE 4 · Days 7-8 · Discover and College
-- [ ] [G] Discovery settings screen (mode, radius, ages, genders, verified only, filters)
-- [ ] [S] Discover feed + swipe cards (gestures, like/pass)
-- [ ] [S] College tab with scope switch (my college / my city / my state), verified colleges only
-- [ ] [G] College tab empty state for unverified users: "Verify your college to join"
-- [ ] [G] Empty, loading, error states
-- [ ] [X] dev-only seed: 30 fake profiles in supabase/seed.sql (some with verified colleges)
+- [x] ~~[G] Discovery settings screen (mode, radius, ages, genders, verified only, filters)~~ — **Done 2026-09-21**
+- [x] ~~[S] Discover feed + swipe cards (gestures, like/pass)~~ — **Done 2026-09-21**
+- [x] ~~[S] College tab with scope switch (my college / my city / my state), verified colleges only~~ — **Done 2026-09-21**
+- [x] ~~[G] College tab empty state for unverified users: "Verify your college to join"~~ — **Done 2026-09-21**
+- [x] ~~[G] Empty, loading, error states~~ — **Done 2026-09-21**
+- [x] ~~[X] dev-only seed: 30 fake profiles in supabase/seed.sql (some with verified colleges)~~ — **Done 2026-09-21**
 Done when: results match settings on the 30 test profiles; blocked/swiped/unverified-college never appear wrongly.
 
 ## PHASE 5 · Days 9-10 · Matches, chat, requests

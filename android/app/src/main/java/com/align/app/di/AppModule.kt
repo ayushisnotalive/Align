@@ -53,6 +53,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindProfileRepository(impl: ProfileRepositoryImpl): ProfileRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindDiscoverRepository(impl: com.align.app.data.discover.DiscoverRepositoryImpl): com.align.app.domain.discover.DiscoverRepository
 }
 
 /**

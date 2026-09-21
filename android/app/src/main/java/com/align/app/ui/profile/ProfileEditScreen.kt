@@ -18,6 +18,7 @@ fun ProfileEditScreen(
     onNavigateToAttributes: () -> Unit,
     onNavigateToHometown: () -> Unit,
     onNavigateToPlaces: () -> Unit,
+    onNavigateToSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -70,6 +71,16 @@ fun ProfileEditScreen(
                     title = "Places I've Lived",
                     subtitle = "Cities you've called home",
                     onClick = onNavigateToPlaces
+                )
+                Divider()
+            }
+            
+            item {
+                SectionHeader("Preferences")
+                ProfileListItem(
+                    title = "Discovery Settings",
+                    subtitle = "Adjust your feed and matching criteria",
+                    onClick = onNavigateToSettings
                 )
                 Divider()
             }

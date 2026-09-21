@@ -62,6 +62,8 @@ object Routes {
     const val EXPLORE  = "explore"
     const val MATCHES  = "matches"
     const val CHATS    = "chats"
+    
+    const val DISCOVERY_SETTINGS = "discovery_settings"
 
     const val ONBOARDING_BASIC_INFO = "onboarding/basic_info"
     const val ONBOARDING_PHOTOS     = "onboarding/photos"
@@ -334,7 +336,7 @@ fun AppNavGraph() {
                 )
             }
 
-            // ── Main tabs (stubs, replaced in Phase 4+) ────────────────────
+            // ── Main tabs ────────────────────────────────────────────────────────
 
             composable(Routes.DISCOVER) { 
                 OnboardingGate(
@@ -344,13 +346,23 @@ fun AppNavGraph() {
                         }
                     }
                 ) {
-                    DiscoverScreen() 
+                    com.align.app.ui.discover.DiscoverScreen() 
                 }
             }
-            composable(Routes.COLLEGE)  { CollegeScreen() }
+            composable(Routes.COLLEGE)  { 
+                com.align.app.ui.college.CollegeScreen(
+                    onNavigateToVerify = { navController.navigate(Routes.COLLEGE_PICKER) }
+                ) 
+            }
             composable(Routes.EXPLORE)  { ExploreScreen() }
             composable(Routes.MATCHES)  { MatchesScreen() }
             composable(Routes.CHATS)    { ChatsScreen() }
+
+            composable(Routes.DISCOVERY_SETTINGS) {
+                com.align.app.ui.discover.DiscoverySettingsScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
 
             // ── Profile hub ────────────────────────────────────────────────
 
@@ -362,6 +374,7 @@ fun AppNavGraph() {
                     onNavigateToAttributes      = { navController.navigate(Routes.ATTRIBUTES_FLOW) },
                     onNavigateToHometown        = { navController.navigate(Routes.HOMETOWN_PICKER) },
                     onNavigateToPlaces          = { navController.navigate(Routes.PLACES_PICKER) },
+                    onNavigateToSettings        = { navController.navigate(Routes.DISCOVERY_SETTINGS) },
                 )
             }
 
@@ -372,6 +385,7 @@ fun AppNavGraph() {
                     onNavigateToAttributes      = { navController.navigate(Routes.ATTRIBUTES_FLOW) },
                     onNavigateToHometown        = { navController.navigate(Routes.HOMETOWN_PICKER) },
                     onNavigateToPlaces          = { navController.navigate(Routes.PLACES_PICKER) },
+                    onNavigateToSettings        = { navController.navigate(Routes.DISCOVERY_SETTINGS) },
                 )
             }
 
@@ -446,8 +460,6 @@ fun AppNavGraph() {
 
 // ── Stub screens — replaced one-by-one per phase ──────────────────────────────
 
-@Composable private fun DiscoverScreen() = StubScreen("Discover")
-@Composable private fun CollegeScreen()  = StubScreen("College")
 @Composable private fun ExploreScreen()  = StubScreen("Explore")
 @Composable private fun MatchesScreen()  = StubScreen("Matches")
 @Composable private fun ChatsScreen()    = StubScreen("Chats")
