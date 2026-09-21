@@ -145,7 +145,7 @@ class MediaRepositoryImpl @Inject constructor(
             )
             
             val insertedMedia = postgrest["media"].insert(mediaRow) {
-                select()
+                select(io.github.jan.supabase.postgrest.query.Columns.list("id", "s3_key"))
             }.decodeSingle<MediaInsertResponse>()
             
             // 5. If profile_photo, also insert into the photos gallery join table
