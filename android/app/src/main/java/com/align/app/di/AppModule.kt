@@ -11,6 +11,10 @@ import com.align.app.domain.auth.AuthRepository
 import com.align.app.domain.consent.ConsentRepository
 import com.align.app.data.consent.ConsentRepositoryImpl
 import com.align.app.domain.location.LocationRepository
+import com.align.app.domain.media.MediaRepository
+import com.align.app.data.media.MediaRepositoryImpl
+import com.align.app.domain.profile.ProfileRepository
+import com.align.app.data.profile.ProfileRepositoryImpl
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import dagger.Binds
@@ -41,6 +45,14 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindConsentRepository(impl: ConsentRepositoryImpl): ConsentRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMediaRepository(impl: MediaRepositoryImpl): MediaRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindProfileRepository(impl: ProfileRepositoryImpl): ProfileRepository
 }
 
 /**
