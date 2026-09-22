@@ -20,6 +20,8 @@ fun BasicInfoScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     var firstName by remember { mutableStateOf("") }
+    var lastName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var dob by remember { mutableStateOf("") }
     var selectedGender by remember { mutableStateOf<LookupValue?>(null) }
     var selectedPronoun by remember { mutableStateOf<LookupValue?>(null) }
@@ -57,6 +59,20 @@ fun BasicInfoScreen(
                     value = firstName,
                     onValueChange = { firstName = it },
                     label = { Text("First Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = lastName,
+                    onValueChange = { lastName = it },
+                    label = { Text("Last Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = { Text("Email") },
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -153,12 +169,14 @@ fun BasicInfoScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
                 
-                val isValid = firstName.isNotBlank() && dob.isNotBlank() && selectedGender != null && selectedOrientation != null
+                val isValid = firstName.isNotBlank() && lastName.isNotBlank() && email.isNotBlank() && dob.isNotBlank() && selectedGender != null && selectedOrientation != null
                 
                 Button(
                     onClick = {
                         viewModel.saveBasicInfo(
                             firstName = firstName,
+                            lastName = lastName,
+                            email = email,
                             dob = dob,
                             genderId = selectedGender!!.id,
                             pronounId = selectedPronoun?.id,

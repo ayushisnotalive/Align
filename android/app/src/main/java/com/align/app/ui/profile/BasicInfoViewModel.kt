@@ -63,6 +63,8 @@ class BasicInfoViewModel @Inject constructor(
 
     fun saveBasicInfo(
         firstName: String,
+        lastName: String,
+        email: String,
         dob: String,
         genderId: Int,
         pronounId: Int?,
@@ -71,7 +73,7 @@ class BasicInfoViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             _uiState.update { it.copy(isSaving = true, error = null) }
-            val result = profileRepository.updateBasicInfo(firstName, dob, genderId, pronounId, orientationId)
+            val result = profileRepository.updateBasicInfo(firstName, lastName, email, dob, genderId, pronounId, orientationId)
             
             if (result.isSuccess) {
                 val stepResult = profileRepository.updateOnboardingStep(1)

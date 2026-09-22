@@ -38,12 +38,14 @@ import com.align.app.ui.consent.ConsentScreen
 import com.align.app.ui.location.LocationScreen
 import com.align.app.ui.profile.AttributesFlowScreen
 import com.align.app.ui.profile.BasicInfoScreen
+import com.align.app.ui.profile.BioScreen
 import com.align.app.ui.profile.CollegePickerScreen
 import com.align.app.ui.profile.CollegeVerificationScreen
 import com.align.app.ui.profile.PhotoGalleryScreen
 import com.align.app.ui.profile.PlacesPickerScreen
 import com.align.app.ui.profile.ProfileEditScreen
 import com.align.app.ui.profile.ProfileViewModel
+import com.align.app.ui.profile.WorkAndEducationScreen
 
 // ── Route constants ───────────────────────────────────────────────────────────
 
@@ -66,6 +68,8 @@ object Routes {
     const val DISCOVERY_SETTINGS = "discovery_settings"
 
     const val ONBOARDING_BASIC_INFO = "onboarding/basic_info"
+    const val ONBOARDING_WORK_EDU   = "onboarding/work_edu"
+    const val ONBOARDING_BIO        = "onboarding/bio"
     const val ONBOARDING_PHOTOS     = "onboarding/photos"
     const val ONBOARDING_COLLEGE    = "onboarding/college"
     const val ONBOARDING_HOMETOWN   = "onboarding/hometown"
@@ -221,8 +225,28 @@ fun AppNavGraph() {
             composable(Routes.ONBOARDING_BASIC_INFO) {
                 BasicInfoScreen(
                     onComplete = {
-                        navController.navigate(Routes.ONBOARDING_PHOTOS) {
+                        navController.navigate(Routes.ONBOARDING_WORK_EDU) {
                             popUpTo(Routes.ONBOARDING_BASIC_INFO) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            
+            composable(Routes.ONBOARDING_WORK_EDU) {
+                WorkAndEducationScreen(
+                    onComplete = {
+                        navController.navigate(Routes.ONBOARDING_BIO) {
+                            popUpTo(Routes.ONBOARDING_WORK_EDU) { inclusive = true }
+                        }
+                    }
+                )
+            }
+            
+            composable(Routes.ONBOARDING_BIO) {
+                BioScreen(
+                    onComplete = {
+                        navController.navigate(Routes.ONBOARDING_PHOTOS) {
+                            popUpTo(Routes.ONBOARDING_BIO) { inclusive = true }
                         }
                     }
                 )

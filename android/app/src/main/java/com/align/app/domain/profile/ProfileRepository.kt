@@ -12,7 +12,9 @@ interface ProfileRepository {
     // Onboarding methods
     suspend fun getOnboardingStep(): Result<Int>
     suspend fun updateOnboardingStep(step: Int): Result<Unit>
-    suspend fun updateBasicInfo(firstName: String, dob: String, genderId: Int, pronounId: Int?, orientationId: Int): Result<Unit>
+    suspend fun updateBasicInfo(firstName: String, lastName: String, email: String, dob: String, genderId: Int, pronounId: Int?, orientationId: Int): Result<Unit>
+    suspend fun updateWorkAndEducation(occupation: String, employer: String, school: String, educationId: Int?): Result<Unit>
+    suspend fun updateBio(bio: String): Result<Unit>
     suspend fun getLookupValues(listKey: String): Result<List<LookupValue>>
 }
 

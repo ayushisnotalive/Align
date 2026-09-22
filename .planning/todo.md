@@ -72,7 +72,7 @@ Never edit a migration after it has been pushed. Add a new one instead.
 Done when: kill + reopen stays logged in; denying location blocks all tabs.
 
 ## PHASE 3 · Days 5-7 · Profile, media and college verification
-- [x] [G] Required onboarding steps (resumable via onboarding_step, N/A options)
+- [x] ~~[G] Required onboarding steps (resumable via onboarding_step, N/A options)~~ — **Done 2026-09-22** (Added Last Name, Email, Work & Edu, Bio screens)
 - [x] ~~[S] Edge Function: presigned S3 upload (auth, mime, size, photo count, kind: profile_photo | chat_image | college_id)
       - college_id goes to the private college-id/ prefix, not the public media path~~ — **Done 2026-09-21** (`presigned-upload` edge fn, `npm:` imports, `Deno.serve`)
 - [x] ~~[S] Edge Function: post-upload processing (EXIF strip, resize, media row)~~ — **Done 2026-09-21** (handled client-side via Bitmap re-encode in `MediaRepositoryImpl`)

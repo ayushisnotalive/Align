@@ -24,12 +24,19 @@ data class ProfileUpdateDto(
     val first_name: String? = null,
     val gender_id: Int? = null,
     val pronoun_id: Int? = null,
-    val orientation_id: Int? = null
+    val orientation_id: Int? = null,
+    val occupation: String? = null,
+    val employer: String? = null,
+    val school: String? = null,
+    val education_id: Int? = null,
+    val bio: String? = null
 )
 
 @Serializable
 data class ProfilePrivateUpdateDto(
-    val dob: String? = null
+    val dob: String? = null,
+    val last_name: String? = null,
+    val email: String? = null
 )
 
 @Serializable
@@ -154,7 +161,9 @@ class ProfileRepositoryImpl @Inject constructor(
     }
     
     override suspend fun updateBasicInfo(
-        firstName: String, 
+        firstName: String,
+        lastName: String,
+        email: String,
         dob: String, 
         genderId: Int, 
         pronounId: Int?, 
@@ -174,11 +183,49 @@ class ProfileRepositoryImpl @Inject constructor(
             
             // Update public.profile_private
             postgrest["profile_private"].update(ProfilePrivateUpdateDto(
-                dob = dob
+                dob = dob,
+                last_name = lastName,
+                email = email
             )) {
                 filter { eq("user_id", user.id) } // private table uses user_id
             }
             
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    override suspend fun updateWorkAndEducation(
+        occupation: String,
+        employer: String,
+        school: String,
+        educationId: Int?
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val user = auth.currentUserOrNull() ?: return@withContext Result.failure(Exception("Not authenticated"))
+            postgrest["profiles"].update(ProfileUpdateDto(
+                occupation = occupation.takeIf { it.isNotBlank() },
+                employer = employer.takeIf { it.isNotBlank() },
+                school = school.takeIf { it.isNotBlank() },
+                education_id = educationId
+            )) {
+                filter { eq("id", user.id) }
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateBio(bio: String): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val user = auth.currentUserOrNull() ?: return@withContext Result.failure(Exception("Not authenticated"))
+            postgrest["profiles"].update(ProfileUpdateDto(
+                bio = bio.takeIf { it.isNotBlank() }
+            )) {
+                filter { eq("id", user.id) }
+            }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
