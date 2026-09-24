@@ -184,6 +184,7 @@ export default function Matches() {
           <FlashList
             data={activeConversations}
             renderItem={renderItem}
+            // @ts-ignore
             estimatedItemSize={88}
             ListHeaderComponent={renderHeader}
             contentContainerStyle={{ paddingBottom: 40 }}
