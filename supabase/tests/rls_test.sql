@@ -1,7 +1,7 @@
 begin;
 
 -- Plan number of tests
-select plan(16);
+select plan(19);
 
 -- Create dummy users
 insert into auth.users (id, aud, role, email, phone) values 
@@ -145,6 +145,104 @@ select is(
   'reject',
   'banned phone number is rejected at signup'
 );
+
+-- ===== LIVE SPACE TESTS (Phase 6) =====
+
+-- 15. go_live called twice by same user upserts (doesn't create two rows)
+-- First, we need a user with a profile
+reset role;
+insert into public.profiles (id, first_name, gender_id, profile_complete) values
+  ('00000000-0000-0000-0000-000000000001', 'Test', 1, true)
+on conflict do nothing;
+
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000000001';
+
+-- First go_live
+select public.go_live('coffee', '{}');
+
+-- Check one row exists
+select is(
+  (select count(*) from public.live_presence where user_id = '00000000-0000-0000-0000-000000000001')::int,
+  1,
+  'first go_live creates one row'
+);
+
+-- Second go_live (should upsert, not insert new row)
+select public.go_live('studying', '{}');
+
+select is(
+  (select count(*) from public.live_presence where user_id = '00000000-0000-0000-0000-000000000001')::int,
+  1,
+  'second go_live upserts instead of creating duplicate'
+);
+
+-- Verify the goal was updated
+select is(
+  (select goal_code from public.live_presence where user_id = '00000000-0000-0000-0000-000000000001'),
+  'studying',
+  'go_live upsert updates the goal_code'
+);
+
+-- Clean up
+reset role;
+delete from public.live_presence where user_id = '00000000-0000-0000-0000-000000000001';
+delete from public.live_sessions_log where user_id = '00000000-0000-0000-0000-000000000001';
+
+-- 16. get_live_feed excludes blocked users
+-- Create user 2 with profile
+insert into public.profiles (id, first_name, gender_id, profile_complete) values
+  ('00000000-0000-0000-0000-000000000002', 'Test2', 1, true)
+on conflict do nothing;
+
+-- User 1 blocks user 2
+insert into public.blocks (blocker_id, blocked_id) values
+  ('00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002');
+
+-- User 2 goes live (as superuser to bypass RLS)
+reset role;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000000002';
+select public.go_live('coffee', '{}');
+
+-- User 1 calls get_live_feed
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000000001';
+
+select is_empty(
+  $$ select * from public.get_live_feed() where user_id = '00000000-0000-0000-0000-000000000002' $$,
+  'get_live_feed excludes blocked users'
+);
+
+-- Clean up
+reset role;
+delete from public.live_presence where user_id = '00000000-0000-0000-0000-000000000002';
+delete from public.live_sessions_log where user_id = '00000000-0000-0000-0000-000000000002';
+delete from public.blocks where blocker_id = '00000000-0000-0000-0000-000000000001';
+
+-- 17. Banned user cannot go live
+-- First, we need to ban user 1's phone number
+-- User 1 needs a phone number in profile_private
+insert into public.profile_private (user_id, phone) values
+  ('00000000-0000-0000-0000-000000000001', '+919999999999')
+on conflict do nothing;
+
+-- Create a ban for this phone
+insert into public.bans (phone_hash, reason, created_by) values
+  (encode(digest('+919999999999', 'sha256'), 'hex'), 'test ban', null)
+on conflict do nothing;
+
+set local role authenticated;
+set local request.jwt.claim.sub = '00000000-0000-0000-0000-000000000001';
+
+select throws_like(
+  $$ select public.go_live('coffee', '{}') $$,
+  '%banned%',
+  'banned user cannot go live'
+);
+
+-- Clean up ban for other tests
+reset role;
+delete from public.bans where phone_hash = encode(digest('+919999999999', 'sha256'), 'hex');
 
 select * from finish();
 

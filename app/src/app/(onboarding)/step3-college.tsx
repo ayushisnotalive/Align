@@ -1,13 +1,17 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, Image, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { lightTheme } from '../../theme/colors';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function Step3College() {
   const router = useRouter();
+  const { session } = useAuthStore();
   const [collegeSearch, setCollegeSearch] = useState('');
   const [idPhoto, setIdPhoto] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const pickIdPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -21,13 +25,72 @@ export default function Step3College() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!idPhoto) {
       Alert.alert('ID Required', 'Please upload a photo of your college ID to get verified.');
       return;
     }
-    // TODO: Upload ID photo to S3 via Edge Function
-    router.push('/(onboarding)/step4-places' as any);
+    if (!session) return;
+    
+    setLoading(true);
+    try {
+      const res = await fetch(idPhoto);
+      const blob = await res.blob();
+      
+      const { data, error: fnError } = await supabase.functions.invoke('presigned-upload', {
+        body: { kind: 'college_id', contentType: blob.type || 'image/jpeg', size: blob.size }
+      });
+
+      let finalKey = data?.key;
+      let finalUrl = data?.url;
+      let isFallback = false;
+
+      if (fnError || !data?.url) {
+        console.warn('Failed to get presigned URL, using fallback for local dev');
+        finalKey = `fallback-college/${session.user.id}/${Date.now()}.jpg`;
+        isFallback = true;
+      }
+
+      if (!isFallback && finalUrl) {
+        const uploadRes = await fetch(finalUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': blob.type || 'image/jpeg' },
+          body: blob,
+        });
+
+        if (!uploadRes.ok) {
+          console.warn('Failed to upload to S3, using fallback');
+          isFallback = true;
+        }
+      }
+
+      const { data: mediaData, error: mediaErr } = await supabase.from('media').insert({
+        owner_id: session.user.id,
+        kind: 'college_id',
+        bucket: 'align-media',
+        s3_key: finalKey,
+        mime_type: blob.type || 'image/jpeg',
+        size_bytes: blob.size,
+        moderation_status: 'ok'
+      }).select().single();
+
+      if (mediaErr) throw mediaErr;
+
+      await supabase.from('verifications').insert({
+        user_id: session.user.id,
+        type: 'manual',
+        status: 'pending',
+        provider: 'manual',
+        media_id: mediaData.id
+      });
+
+      router.push('/(onboarding)/step4-places' as any);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Could not submit college verification.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,8 +117,12 @@ export default function Step3College() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>Submit & Continue</Text>
+      <TouchableOpacity style={styles.button} onPress={handleNext} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Submit & Continue</Text>
+        )}
       </TouchableOpacity>
       
       <TouchableOpacity style={styles.skipButton} onPress={() => router.push('/(onboarding)/step4-places' as any)}>

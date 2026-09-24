@@ -1,17 +1,68 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
+import { supabase } from '../../lib/supabase';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-const MOCK_COLLEGE_FEED = [
-  { id: '10', name: 'Priya', age: 21, college: 'IIT Delhi', degree: 'B.Tech CS', year: '3rd Year', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800' },
-  { id: '11', name: 'Rohan', age: 22, college: 'IIT Delhi', degree: 'M.Tech', year: '1st Year', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800' },
-];
-
 export default function CollegeFeed() {
   const [scope, setScope] = useState<'college' | 'city' | 'state'>('college');
+  const [profiles, setProfiles] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchCollegeFeed();
+  }, [scope]);
+
+  const fetchCollegeFeed = async () => {
+    setLoading(true);
+    setErrorMsg(null);
+    try {
+      const { data, error } = await supabase.rpc('get_feed', {
+        p_mode: 'college',
+        p_scope: scope === 'college' ? 'my_college' : (scope === 'city' ? 'my_city' : 'my_state'),
+        p_cursor: null,
+        p_limit: 20
+      });
+
+      if (error) {
+        if (error.message.includes('verified college')) {
+          setErrorMsg('You must verify your college ID to access the College Network.');
+        } else {
+          setErrorMsg(error.message);
+        }
+      } else {
+        setProfiles(data || []);
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getImageUrl = (profile: any) => {
+    if (profile.photos && profile.photos.length > 0) {
+      return `https://align-media.s3.amazonaws.com/${profile.photos[0].s3_key}`;
+    }
+    return 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800';
+  };
+
+  if (errorMsg) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <Ionicons name="lock-closed" size={64} color={lightTheme.primary} style={{ marginBottom: 16 }} />
+        <Text style={styles.errorText}>{errorMsg}</Text>
+        {errorMsg.includes('verify') && (
+          <TouchableOpacity style={styles.verifyBtn}>
+            <Text style={styles.verifyBtnText}>Verify Now</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -42,30 +93,38 @@ export default function CollegeFeed() {
       </View>
 
       <ScrollView style={styles.feed} contentContainerStyle={styles.feedContent}>
-        {MOCK_COLLEGE_FEED.map(profile => (
-          <View key={profile.id} style={styles.card}>
-            <Image source={{ uri: profile.image }} style={styles.cardImage} />
-            <View style={styles.cardInfo}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.name}>{profile.name}, {profile.age}</Text>
-                <View style={styles.verifiedBadge}>
-                  <Ionicons name="checkmark-circle" size={16} color={lightTheme.primary} />
+        {loading ? (
+          <ActivityIndicator size="large" color={lightTheme.primary} style={{ marginTop: 40 }} />
+        ) : profiles.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 40, color: '#888' }}>No profiles found in this scope.</Text>
+        ) : (
+          profiles.map(profile => (
+            <View key={profile.id} style={styles.card}>
+              <Image source={{ uri: getImageUrl(profile) }} style={styles.cardImage} />
+              <View style={styles.cardInfo}>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.name}>{profile.first_name}, {profile.age}</Text>
+                  {profile.is_blue_tick && (
+                    <View style={styles.verifiedBadge}>
+                      <Ionicons name="checkmark-circle" size={16} color={lightTheme.primary} />
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.college}><Ionicons name="school" size={14} /> {profile.college?.college_name || 'No College'}</Text>
+                <Text style={styles.degree}>{profile.college?.course || ''} • {profile.college?.study_year || ''}</Text>
+                
+                <View style={styles.actions}>
+                  <TouchableOpacity style={styles.actionBtn}>
+                    <Ionicons name="close" size={24} color="#ff4b4b" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.actionBtn, styles.likeBtn]}>
+                    <Ionicons name="heart" size={24} color="#fff" />
+                  </TouchableOpacity>
                 </View>
               </View>
-              <Text style={styles.college}><Ionicons name="school" size={14} /> {profile.college}</Text>
-              <Text style={styles.degree}>{profile.degree} • {profile.year}</Text>
-              
-              <View style={styles.actions}>
-                <TouchableOpacity style={styles.actionBtn}>
-                  <Ionicons name="close" size={24} color="#ff4b4b" />
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.actionBtn, styles.likeBtn]}>
-                  <Ionicons name="heart" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
             </View>
-          </View>
-        ))}
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -180,5 +239,23 @@ const styles = StyleSheet.create({
   },
   likeBtn: {
     backgroundColor: lightTheme.primary,
+  },
+  errorText: {
+    fontSize: 18,
+    color: lightTheme.text,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 26,
+  },
+  verifyBtn: {
+    backgroundColor: lightTheme.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  verifyBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

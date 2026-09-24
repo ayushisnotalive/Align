@@ -272,15 +272,30 @@ BEGIN
   FOR i IN 1..1000 LOOP
     new_uid := gen_random_uuid();
     
+    -- Insert into auth.users first
+    INSERT INTO auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at) 
+    VALUES ('00000000-0000-0000-0000-000000000000', new_uid, 'authenticated', 'authenticated', 'loadtest' || i || '@example.com', crypt('password123', gen_salt('bf')), now(), '{"provider":"email","providers":["email"]}', '{}', now(), now())
+    ON CONFLICT DO NOTHING;
+
     -- Insert profile
-    INSERT INTO public.profiles (id, name, dob, profile_complete, status)
-    VALUES (new_uid, 'LoadTestUser' || i, '2000-01-01', true, 'active')
+    INSERT INTO public.profiles (id, first_name, profile_complete, status)
+    VALUES (new_uid, 'LoadTestUser' || i, true, 'active')
+    ON CONFLICT DO NOTHING;
+    
+    INSERT INTO public.profile_private (user_id, dob)
+    VALUES (new_uid, '2000-01-01')
     ON CONFLICT DO NOTHING;
     
     -- Insert default discovery settings
     INSERT INTO public.discovery_settings (user_id, mode, radius_km, min_age, max_age)
     VALUES (new_uid, 'both', 50, 18, 30)
     ON CONFLICT DO NOTHING;
+    
+    -- Update location to something near San Francisco for testing
+    UPDATE public.user_location 
+    SET coarse_point = ST_SetSRID(ST_MakePoint(-122.4194 + (random() * 0.1 - 0.05), 37.7749 + (random() * 0.1 - 0.05)), 4326),
+        updated_at = now()
+    WHERE user_id = new_uid;
     
   END LOOP;
 END $$;

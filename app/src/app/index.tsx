@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useRouter } from 'expo-router';
 import { useEffect } from 'react';
 import { lightTheme } from '../theme/colors';
+import * as SecureStore from 'expo-secure-store';
 
 export default function Splash() {
   const { session, initialized } = useAuthStore();
@@ -14,6 +15,23 @@ export default function Splash() {
 
     const checkProfileAndRoute = async () => {
       if (session) {
+        if (session.user.email === 'theayushchakraborty@gmail.com') {
+          router.replace('/admin' as any);
+          return;
+        }
+
+        const consentsGranted = await SecureStore.getItemAsync('consents_granted');
+        if (!consentsGranted) {
+          router.replace('/consents' as any);
+          return;
+        }
+
+        const locationGranted = await SecureStore.getItemAsync('location_granted');
+        if (!locationGranted) {
+          router.replace('/location-gate' as any);
+          return;
+        }
+
         // Fetch profile to see if it's complete
         const { data, error } = await supabase
           .from('profiles')
@@ -21,9 +39,7 @@ export default function Splash() {
           .eq('id', session.user.id)
           .single();
 
-        if (session.user.email === 'theayushchakraborty@gmail.com') {
-          router.replace('/admin' as any);
-        } else if (data && data.profile_complete) {
+        if (data && data.profile_complete) {
           router.replace('/(tabs)/discover' as any); 
         } else {
           router.replace('/(onboarding)/step1-profile' as any);

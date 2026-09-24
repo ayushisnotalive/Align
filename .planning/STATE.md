@@ -1,15 +1,15 @@
 ---
 status: active
-current_phase: 2
-progress: 11
+current_phase: 6
+progress: 55
 ---
 # Status
 
-We are rewriting the frontend from Native Android (Kotlin/Compose) to React Native (Expo). Phase 1 (Database) is complete. We are currently starting Phase 2 (Auth and Location Gate) in the new React Native codebase.
+We are rewriting the frontend from Native Android (Kotlin/Compose) to React Native (Expo). Phase 5 (Matches & Chat) is complete. Phase 6 (Explore & Map) has just been planned and is ready for execution.
 
 ### Blockers/Concerns
 
-Need to set up the Expo project and configure Supabase JS client.
+Ensure realtime subscriptions (Supabase) are working for chat and matches.
 
 ### Quick Tasks Completed
 

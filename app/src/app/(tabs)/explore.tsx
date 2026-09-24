@@ -1,102 +1,256 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, ActivityIndicator, Dimensions } from 'react-native';
+import MapView, { Marker, Region } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
+import { useLiveFeed, LiveUser } from '../../hooks/use-live-feed';
+import { supabase } from '../../lib/supabase';
 
-const MOCK_LIVE_FEED = [
-  { id: '1', name: 'Kabir', goal: 'Grabbing coffee', expires_in: '1h 20m' },
-  { id: '2', name: 'Ayesha', goal: 'Studying', expires_in: '45m' },
-  { id: '3', name: 'Rahul', goal: 'At the gym', expires_in: '15m' },
+// Goal options mapping display labels to backend codes
+const GOAL_OPTIONS = [
+  { label: 'Grabbing coffee', code: 'coffee' },
+  { label: 'Studying', code: 'studying' },
+  { label: 'At the gym', code: 'gym' },
+  { label: 'Looking for lunch', code: 'lunch' },
+  { label: 'Chilling', code: 'chilling' },
 ];
 
-export default function Explore() {
-  const [isLiveModalVisible, setLiveModalVisible] = useState(false);
-  const [selectedGoal, setSelectedGoal] = useState<string | null>(null);
-  const [isLive, setIsLive] = useState(false);
+const GOAL_CODE_TO_LABEL: Record<string, string> = GOAL_OPTIONS.reduce((acc, opt) => {
+  acc[opt.code] = opt.label;
+  return acc;
+}, {} as Record<string, string>);
 
-  const handleGoLive = () => {
-    // In a real app, call supabase.rpc('go_live', { p_goal_code: selectedGoal })
-    setIsLive(true);
-    setLiveModalVisible(false);
+export default function Explore() {
+  const {
+    feed,
+    isLive,
+    liveCountdown,
+    fetchFeed,
+    goLive,
+    stopLive,
+  } = useLiveFeed();
+
+  const mapRef = useRef<MapView>(null);
+  const [initialRegion, setInitialRegion] = useState<Region | null>(null);
+  const [isLiveModalVisible, setLiveModalVisible] = useState(false);
+  const [selectedGoalCode, setSelectedGoalCode] = useState<string | null>(null);
+  const [isGoingLive, setIsGoingLive] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<LiveUser | null>(null);
+  const [sendingRequest, setSendingRequest] = useState(false);
+  const [ghostMode, setGhostMode] = useState(false);
+
+  // Fetch initial ghost mode status
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from('discovery_settings')
+          .select('ghost_mode')
+          .eq('user_id', user.id)
+          .single();
+        if (data) setGhostMode(data.ghost_mode);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission required', 'Location permission is needed to show the map.');
+        // Default to Delhi if denied
+        setInitialRegion({
+          latitude: 28.6139,
+          longitude: 77.2090,
+          latitudeDelta: 0.1,
+          longitudeDelta: 0.1,
+        });
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      setInitialRegion({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      });
+      // Fetch feed for current location initially
+      fetchFeed(location.coords.latitude, location.coords.longitude, 25);
+    })();
+  }, [fetchFeed]);
+
+  const handleRegionChangeComplete = (region: Region) => {
+    // Fetch nearby users when map is moved
+    fetchFeed(region.latitude, region.longitude, 50);
+  };
+
+  const handleGoLive = async () => {
+    if (!selectedGoalCode) return;
+    setIsGoingLive(true);
+    const result = await goLive(selectedGoalCode, []);
+    setIsGoingLive(false);
+
+    if (result.error) {
+      Alert.alert('Error', result.error);
+    } else {
+      setLiveModalVisible(false);
+      setSelectedGoalCode(null);
+    }
   };
 
   const handleStopLive = () => {
-    // Call supabase.rpc('stop_live')
-    setIsLive(false);
-  };
-
-  const handleActionOptions = (userName: string, userId: string) => {
     Alert.alert(
-      `Options for ${userName}`,
-      'What would you like to do?',
+      'Stop Live Session',
+      'Are you sure you want to stop your live session?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Report', style: 'destructive', onPress: () => Alert.alert('Reported', 'User has been reported to admins.') },
-        { text: 'Block', style: 'destructive', onPress: () => Alert.alert('Blocked', 'User has been blocked.') },
+        { text: 'Stop', style: 'destructive', onPress: () => stopLive() },
       ]
     );
   };
 
+  const handleSendWave = async () => {
+    if (!selectedUser) return;
+    setSendingRequest(true);
+    try {
+      const { error } = await supabase.rpc('send_message_request', {
+        p_target_id: selectedUser.user_id,
+        p_body: `Hey! I saw you are ${GOAL_CODE_TO_LABEL[selectedUser.goal_code] || selectedUser.goal_code} nearby.`
+      });
+      if (error) throw error;
+      Alert.alert('Sent!', `You waved at ${selectedUser.name}.`);
+      setSelectedUser(null);
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setSendingRequest(false);
+    }
+  };
+
+  const handleToggleGhostMode = async () => {
+    const newGhostMode = !ghostMode;
+    setGhostMode(newGhostMode);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { error } = await supabase
+        .from('discovery_settings')
+        .update({ ghost_mode: newGhostMode })
+        .eq('user_id', user.id);
+        
+      if (error) {
+        Alert.alert('Error', 'Failed to update Ghost Mode');
+        setGhostMode(!newGhostMode); // Revert
+      } else {
+        Alert.alert('Ghost Mode', newGhostMode ? 'You are now hidden from the map.' : 'You are now visible on the map.');
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      {initialRegion ? (
+        <MapView 
+          ref={mapRef}
+          style={styles.map}
+          initialRegion={initialRegion}
+          onRegionChangeComplete={handleRegionChangeComplete}
+          showsUserLocation
+          showsMyLocationButton
+          userInterfaceStyle="dark"
+        >
+          {feed.map(user => (
+            user.lat && user.lng ? (
+              <Marker
+                key={user.user_id}
+                coordinate={{ latitude: user.lat, longitude: user.lng }}
+                onPress={() => setSelectedUser(user)}
+              >
+                <View style={styles.markerContainer}>
+                  <View style={styles.markerAvatar}>
+                    <Ionicons name="person" size={20} color="#fff" />
+                  </View>
+                </View>
+              </Marker>
+            ) : null
+          ))}
+        </MapView>
+      ) : (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={lightTheme.primary} />
+          <Text style={styles.loadingText}>Locating you...</Text>
+        </View>
+      )}
+
+      {/* Header Overlays */}
+      <View style={styles.headerOverlay}>
         <Text style={styles.headerTitle}>Explore</Text>
-        <TouchableOpacity style={styles.hometownFilter}>
-          <Ionicons name="location" size={16} color={lightTheme.primary} />
-          <Text style={styles.hometownText}>Delhi</Text>
+        <TouchableOpacity style={[styles.ghostModeToggle, ghostMode && styles.ghostModeActive]} onPress={handleToggleGhostMode}>
+          <Ionicons name={ghostMode ? "eye-off" : "eye"} size={20} color={ghostMode ? "#fff" : lightTheme.primary} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.mapPlaceholder}>
-        <Ionicons name="map-outline" size={64} color="#ccc" />
-        <Text style={styles.mapText}>Map integration goes here.</Text>
+      {/* Floating Action Button for Going Live */}
+      <View style={styles.fabContainer}>
+        {isLive ? (
+          <View style={styles.liveActiveContainer}>
+            <View style={styles.liveActiveBadge}>
+              <Ionicons name="radio-button-on" size={12} color={lightTheme.success} />
+              <Text style={styles.liveActiveText}>Live: {liveCountdown}</Text>
+            </View>
+            <TouchableOpacity style={styles.stopLiveFab} onPress={handleStopLive}>
+              <Ionicons name="stop" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity style={styles.goLiveFab} onPress={() => setLiveModalVisible(true)}>
+            <Ionicons name="radio-outline" size={24} color="#fff" />
+            <Text style={styles.goLiveFabText}>Go Live</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      <View style={styles.liveSection}>
-        <View style={styles.liveHeader}>
-          <Text style={styles.sectionTitle}>Live Now</Text>
-          {isLive ? (
-            <TouchableOpacity style={styles.stopLiveBtn} onPress={handleStopLive}>
-              <Text style={styles.stopLiveText}>Stop Live</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.goLiveBtn} onPress={() => setLiveModalVisible(true)}>
-              <Text style={styles.goLiveText}>Go Live</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-        
-        {isLive && (
-          <View style={styles.myLiveBanner}>
-            <Text style={styles.myLiveText}>You are currently live: "{selectedGoal}"</Text>
-            <Text style={styles.myLiveTime}>Expires in 1h 59m</Text>
-          </View>
-        )}
-
-        <ScrollView style={styles.feed} contentContainerStyle={{ paddingBottom: 24 }}>
-          {MOCK_LIVE_FEED.map(live => (
-            <View key={live.id} style={styles.liveCard}>
-              <View style={styles.liveAvatar}>
-                <Ionicons name="person" size={24} color="#fff" />
+      {/* Mini Profile Bottom Sheet */}
+      <Modal visible={!!selectedUser} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={styles.modalDismissArea} onPress={() => setSelectedUser(null)} />
+          <View style={styles.profileSheetContent}>
+            <View style={styles.profileSheetHeader}>
+              <View style={styles.profileSheetAvatar}>
+                <Ionicons name="person" size={40} color="#fff" />
               </View>
-              <View style={styles.liveInfo}>
-                <Text style={styles.liveName}>{live.name}</Text>
-                <Text style={styles.liveGoal}>{live.goal}</Text>
+              <View style={styles.profileSheetInfo}>
+                <Text style={styles.profileSheetName}>{selectedUser?.name}</Text>
+                <Text style={styles.profileSheetGoal}>
+                  {selectedUser ? (GOAL_CODE_TO_LABEL[selectedUser.goal_code] || selectedUser.goal_code) : ''}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.liveTime} onPress={() => handleActionOptions(live.name, live.id)}>
-                <Ionicons name="ellipsis-horizontal" size={20} color="#888" />
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-                  <Ionicons name="time-outline" size={14} color="#888" />
-                  <Text style={styles.liveTimeText}>{live.expires_in}</Text>
-                </View>
+              <TouchableOpacity onPress={() => setSelectedUser(null)}>
+                <Ionicons name="close-circle" size={28} color="#ccc" />
               </TouchableOpacity>
             </View>
-          ))}
-        </ScrollView>
-      </View>
+            <TouchableOpacity 
+              style={styles.waveBtn} 
+              onPress={handleSendWave}
+              disabled={sendingRequest}
+            >
+              {sendingRequest ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.waveBtnText}>Wave 👋</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Go Live Modal */}
-      <Modal visible={isLiveModalVisible} animationType="slide" transparent>
+      <Modal visible={isLiveModalVisible} animationType="fade" transparent>
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -107,23 +261,32 @@ export default function Explore() {
             </View>
             
             <View style={styles.goalsContainer}>
-              {['Grabbing coffee', 'Studying', 'At the gym', 'Looking for lunch', 'Chilling'].map(goal => (
+              {GOAL_OPTIONS.map((goal) => (
                 <TouchableOpacity 
-                  key={goal} 
-                  style={[styles.goalChip, selectedGoal === goal && styles.goalChipActive]}
-                  onPress={() => setSelectedGoal(goal)}
+                  key={goal.code} 
+                  style={[styles.goalChip, selectedGoalCode === goal.code && styles.goalChipActive]}
+                  onPress={() => setSelectedGoalCode(goal.code)}
                 >
-                  <Text style={[styles.goalChipText, selectedGoal === goal && styles.goalChipTextActive]}>{goal}</Text>
+                  <Text style={[
+                    styles.goalChipText, 
+                    selectedGoalCode === goal.code && styles.goalChipTextActive
+                  ]}>
+                    {goal.label}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <TouchableOpacity 
-              style={[styles.startLiveBtn, !selectedGoal && { opacity: 0.5 }]} 
-              disabled={!selectedGoal}
+              style={[styles.startLiveBtn, (!selectedGoalCode || isGoingLive) && { opacity: 0.5 }]} 
+              disabled={!selectedGoalCode || isGoingLive}
               onPress={handleGoLive}
             >
-              <Text style={styles.startLiveBtnText}>Broadcast for 2 Hours</Text>
+              {isGoingLive ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.startLiveBtnText}>Broadcast for 2 Hours</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -133,182 +296,146 @@ export default function Explore() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: lightTheme.background,
-  },
-  header: {
+  container: { flex: 1, backgroundColor: lightTheme.background },
+  map: { width: Dimensions.get('window').width, height: Dimensions.get('window').height },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  loadingText: { marginTop: 12, color: lightTheme.textSecondary, fontWeight: '600' },
+  headerOverlay: {
+    position: 'absolute',
+    top: 60,
+    left: 20,
+    right: 20,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    paddingTop: 60,
-    paddingBottom: 16,
+    alignItems: 'center',
+    zIndex: 10,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: lightTheme.text,
+  headerTitle: { fontSize: 32, fontWeight: '900', color: '#333' },
+  ghostModeToggle: {
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
   },
-  hometownFilter: {
+  ghostModeActive: {
+    backgroundColor: '#333',
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 40,
+    alignSelf: 'center',
+    zIndex: 10,
+  },
+  goLiveFab: {
+    backgroundColor: lightTheme.primary,
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 30,
+    shadowColor: lightTheme.primary,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
+    gap: 8,
+  },
+  goLiveFabText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  liveActiveContainer: { alignItems: 'center', gap: 12 },
+  liveActiveBadge: {
     backgroundColor: '#fff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: lightTheme.border,
-    gap: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 5,
+    gap: 6,
   },
-  hometownText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: lightTheme.primary,
+  liveActiveText: { color: lightTheme.text, fontWeight: '700', fontSize: 14 },
+  stopLiveFab: {
+    backgroundColor: lightTheme.danger,
+    padding: 16,
+    borderRadius: 30,
+    shadowColor: lightTheme.danger,
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 8,
   },
-  mapPlaceholder: {
-    height: 200,
-    backgroundColor: '#f5f5f5',
-    marginHorizontal: 24,
-    borderRadius: 20,
+  markerContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,107,107,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: lightTheme.border,
   },
-  mapText: {
-    marginTop: 8,
-    color: '#888',
-    fontWeight: '600',
-  },
-  liveSection: {
-    flex: 1,
-    paddingHorizontal: 24,
-  },
-  liveHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: lightTheme.text,
-  },
-  goLiveBtn: {
+  markerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: lightTheme.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  goLiveText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  stopLiveBtn: {
-    backgroundColor: '#ff4b4b',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  stopLiveText: {
-    color: '#fff',
-    fontWeight: 'bold',
-  },
-  myLiveBanner: {
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: lightTheme.primary,
-    borderLeftWidth: 4,
-  },
-  myLiveText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: lightTheme.text,
-    marginBottom: 4,
-  },
-  myLiveTime: {
-    fontSize: 14,
-    color: lightTheme.primary,
-  },
-  feed: {
-    flex: 1,
-  },
-  liveCard: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 16,
-    borderRadius: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: lightTheme.border,
+    borderWidth: 2,
+    borderColor: '#fff',
   },
-  liveAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  modalDismissArea: { flex: 1 },
+  profileSheetContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    paddingBottom: 40,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  profileSheetHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 24 },
+  profileSheetAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: '#ccc',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  liveInfo: {
-    flex: 1,
+  profileSheetInfo: { flex: 1 },
+  profileSheetName: { fontSize: 22, fontWeight: 'bold', color: lightTheme.text, marginBottom: 4 },
+  profileSheetGoal: { fontSize: 16, color: lightTheme.textSecondary },
+  waveBtn: {
+    backgroundColor: lightTheme.primary,
+    paddingVertical: 16,
+    borderRadius: 24,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
-  liveName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: lightTheme.text,
-    marginBottom: 2,
-  },
-  liveGoal: {
-    fontSize: 14,
-    color: '#666',
-  },
-  liveTime: {
-    alignItems: 'flex-end',
-    gap: 4,
-  },
-  liveTimeText: {
-    fontSize: 12,
-    color: '#888',
-    fontWeight: '600',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end',
-  },
+  waveBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   modalContent: {
     backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    margin: 20,
+    marginBottom: 'auto',
+    marginTop: 'auto',
+    borderRadius: 24,
     padding: 24,
-    paddingBottom: 48,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
   },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: lightTheme.text,
-  },
-  goalsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 32,
-  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 20, fontWeight: 'bold', color: lightTheme.text },
+  goalsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 32 },
   goalChip: {
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -317,26 +444,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
-  goalChipActive: {
-    backgroundColor: lightTheme.primary,
-    borderColor: lightTheme.primary,
-  },
-  goalChipText: {
-    color: '#666',
-    fontWeight: '600',
-  },
-  goalChipTextActive: {
-    color: '#fff',
-  },
+  goalChipActive: { backgroundColor: lightTheme.primary, borderColor: lightTheme.primary },
+  goalChipText: { color: '#666', fontWeight: '600' },
+  goalChipTextActive: { color: '#fff' },
   startLiveBtn: {
     backgroundColor: lightTheme.primary,
     paddingVertical: 16,
     borderRadius: 24,
     alignItems: 'center',
   },
-  startLiveBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
+  startLiveBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });

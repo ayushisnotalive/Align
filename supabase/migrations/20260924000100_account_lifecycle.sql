@@ -4,6 +4,7 @@
 
 -- 1. request_deletion()
 -- Puts the account into a 14-day grace period.
+DROP FUNCTION IF EXISTS public.request_deletion();
 create or replace function public.request_deletion() returns void
 language plpgsql security definer set search_path = public as $$
 declare

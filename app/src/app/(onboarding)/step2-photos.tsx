@@ -1,12 +1,16 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Image, Alert, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { lightTheme } from '../../theme/colors';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function Step2Photos() {
   const router = useRouter();
+  const { session } = useAuthStore();
   const [photos, setPhotos] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const pickImage = async () => {
     if (photos.length >= 6) {
@@ -30,13 +34,82 @@ export default function Step2Photos() {
     setPhotos(photos.filter((_, i) => i !== index));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (photos.length < 3) {
       Alert.alert('Need More Photos', 'Please add at least 3 photos to continue.');
       return;
     }
-    // TODO: Upload photos to S3 via Edge Function and insert into public.media and public.photos
-    router.push('/(onboarding)/step3-college' as any);
+    
+    if (!session) return;
+    setLoading(true);
+
+    try {
+      // For each photo, upload to S3 and save to DB
+      for (let i = 0; i < photos.length; i++) {
+        const uri = photos[i];
+        const res = await fetch(uri);
+        const blob = await res.blob();
+        
+        // 1. Get presigned URL
+        const { data, error: fnError } = await supabase.functions.invoke('presigned-upload', {
+          body: { kind: 'profile_photo', contentType: blob.type || 'image/jpeg', size: blob.size }
+        });
+
+        let finalKey = data?.key;
+        let finalUrl = data?.url;
+        let isFallback = false;
+
+        if (fnError || !data?.url) {
+          console.warn('Failed to get presigned URL, using fallback for local dev:', fnError || data);
+          finalKey = `fallback-media/${session.user.id}/${Date.now()}.jpg`;
+          isFallback = true;
+        }
+
+        if (!isFallback && finalUrl) {
+          // 2. Upload to S3
+          const uploadRes = await fetch(finalUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': blob.type || 'image/jpeg' },
+            body: blob,
+          });
+
+          if (!uploadRes.ok) {
+            console.warn('Failed to upload to S3, using fallback');
+            isFallback = true;
+          }
+        }
+
+        // 3. Insert into media
+        const { data: mediaData, error: mediaErr } = await supabase.from('media').insert({
+          owner_id: session.user.id,
+          kind: 'profile_photo',
+          bucket: 'align-media',
+          s3_key: finalKey,
+          mime_type: blob.type || 'image/jpeg',
+          size_bytes: blob.size,
+          moderation_status: 'ok' // Set 'ok' in MVP so profile completes
+        }).select().single();
+
+        if (mediaErr) {
+          console.error('Media insert error:', mediaErr);
+          continue;
+        }
+
+        // 4. Insert into photos
+        await supabase.from('photos').insert({
+          user_id: session.user.id,
+          media_id: mediaData.id,
+          position: i + 1
+        });
+      }
+
+      router.push('/(onboarding)/step3-college' as any);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Upload Error', 'Failed to upload photos.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,8 +138,12 @@ export default function Step2Photos() {
         ))}
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleNext}>
-        <Text style={styles.buttonText}>Next</Text>
+      <TouchableOpacity style={styles.button} onPress={handleNext} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Next</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );

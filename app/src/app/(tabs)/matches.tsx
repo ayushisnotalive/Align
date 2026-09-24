@@ -1,34 +1,100 @@
-import React, { useCallback } from 'react';
-import { View, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
+import React, { useCallback, useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
 import { Typography } from '../../components/ui/Typography';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { FlashList } from '@shopify/flash-list';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
+import * as SecureStore from 'expo-secure-store';
 
-const MOCK_NEW_MATCHES = [
-  { id: '1', name: 'Aarav', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800' },
-  { id: '2', name: 'Riya', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800' },
-  { id: '3', name: 'Karan', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800' },
-  { id: '4', name: 'Priya', image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800' },
-];
-
-const MOCK_CONVERSATIONS = [
-  { id: '10', name: 'Priya', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800', lastMessage: 'Hey, are you going to the fest tomorrow?', time: '2m' },
-  { id: '11', name: 'Rohan', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800', lastMessage: 'Haha that is hilarious 😂', time: '1h' },
-  { id: '12', name: 'Neha', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=800', lastMessage: 'See you at 5!', time: 'Yesterday' },
-  { id: '13', name: 'Kabir', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800', lastMessage: 'What\'s up?', time: 'Tuesday' },
-];
+type Match = {
+  match_id: string;
+  other_user_id: string;
+  first_name: string;
+  s3_key: string | null;
+  last_message: string | null;
+  last_message_time: string | null;
+  is_new: boolean;
+};
 
 export default function Matches() {
   const router = useRouter();
+  const { session } = useAuthStore();
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchMatches();
+
+    const matchesChannel = supabase
+      .channel('matches_changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'matches' },
+        (payload) => {
+          fetchMatches();
+        }
+      )
+      .subscribe();
+
+    const messagesChannel = supabase
+      .channel('messages_changes')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          fetchMatches();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(matchesChannel);
+      supabase.removeChannel(messagesChannel);
+    };
+  }, []);
+
+  const fetchMatches = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_matches');
+      if (error) throw error;
+      setMatches(data || []);
+    } catch (err) {
+      console.error('Error fetching matches:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenChat = (matchId: string, name: string) => {
     router.push({
       pathname: '/chat/[id]' as any,
       params: { id: matchId, name },
     });
+  };
+
+  const getImageUrl = (s3Key: string | null) => {
+    if (s3Key) {
+      return `https://align-media.s3.amazonaws.com/${s3Key}`;
+    }
+    return 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800'; // Default placeholder
+  };
+
+  const newMatches = matches.filter(m => m.is_new);
+  const activeConversations = matches.filter(m => !m.is_new);
+
+  const formatTime = (isoString: string | null) => {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    if (diff < 86400000) { // less than 24 hours
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
   const renderHeader = () => (
@@ -45,51 +111,59 @@ export default function Matches() {
           <Typography variant="h4">Message Requests</Typography>
         </View>
         <View style={styles.requestsRight}>
-          <View style={styles.badge}><Typography variant="caption" color="#fff">3</Typography></View>
+          <View style={styles.badge}><Typography variant="caption" color="#fff">0</Typography></View>
           <Ionicons name="chevron-forward" size={20} color="#ccc" />
         </View>
       </PressableScale>
 
       {/* New Matches Queue */}
       <Typography variant="h3" style={styles.sectionTitle}>New Matches</Typography>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false} 
-        contentContainerStyle={styles.matchesQueue}
-      >
-        {MOCK_NEW_MATCHES.map(match => (
-          <PressableScale 
-            key={match.id} 
-            style={styles.matchItem} 
-            onPress={() => handleOpenChat(match.id, match.name)}
-          >
-            <View style={styles.matchImageContainer}>
-              <Image source={{ uri: match.image }} style={styles.matchImage} />
-              <View style={styles.matchDot} />
-            </View>
-            <Typography variant="bodySmall" weight="600">{match.name}</Typography>
-          </PressableScale>
-        ))}
-      </ScrollView>
+      {newMatches.length > 0 ? (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          contentContainerStyle={styles.matchesQueue}
+        >
+          {newMatches.map(match => (
+            <PressableScale 
+              key={match.match_id} 
+              style={styles.matchItem} 
+              onPress={() => handleOpenChat(match.match_id, match.first_name)}
+            >
+              <View style={styles.matchImageContainer}>
+                <Image source={{ uri: getImageUrl(match.s3_key) }} style={styles.matchImage} />
+                <View style={styles.matchDot} />
+              </View>
+              <Typography variant="bodySmall" weight="600">{match.first_name}</Typography>
+            </PressableScale>
+          ))}
+        </ScrollView>
+      ) : (
+        <View style={{ marginLeft: 24, marginBottom: 32 }}>
+          <Typography variant="body" color={lightTheme.textSecondary}>
+            Keep swiping to get new matches!
+          </Typography>
+        </View>
+      )}
 
       <Typography variant="h3" style={styles.sectionTitle}>Messages</Typography>
     </View>
   );
 
-  const renderItem = useCallback(({ item }: { item: typeof MOCK_CONVERSATIONS[0] }) => (
+  const renderItem = useCallback(({ item }: { item: Match }) => (
     <PressableScale 
       style={styles.chatRow} 
-      onPress={() => handleOpenChat(item.id, item.name)}
+      onPress={() => handleOpenChat(item.match_id, item.first_name)}
       scaleTo={0.98}
     >
-      <Image source={{ uri: item.image }} style={styles.chatImage} />
+      <Image source={{ uri: getImageUrl(item.s3_key) }} style={styles.chatImage} />
       <View style={styles.chatContent}>
         <View style={styles.chatHeader}>
-          <Typography variant="h4">{item.name}</Typography>
-          <Typography variant="bodySmall">{item.time}</Typography>
+          <Typography variant="h4">{item.first_name}</Typography>
+          <Typography variant="bodySmall">{formatTime(item.last_message_time)}</Typography>
         </View>
         <Typography variant="body" color={lightTheme.textSecondary} numberOfLines={1}>
-          {item.lastMessage}
+          {item.last_message}
         </Typography>
       </View>
     </PressableScale>
@@ -102,15 +176,20 @@ export default function Matches() {
       </View>
 
       <View style={styles.listContainer}>
-        <FlashList
-          data={MOCK_CONVERSATIONS}
-          renderItem={renderItem}
-          // @ts-ignore
-          estimatedItemSize={88}
-          ListHeaderComponent={renderHeader}
-          contentContainerStyle={{ paddingBottom: 40 }}
-          showsVerticalScrollIndicator={false}
-        />
+        {!loading && matches.length === 0 ? (
+           <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+             <Typography variant="h3" color={lightTheme.textSecondary}>No matches yet</Typography>
+           </View>
+        ) : (
+          <FlashList
+            data={activeConversations}
+            renderItem={renderItem}
+            estimatedItemSize={88}
+            ListHeaderComponent={renderHeader}
+            contentContainerStyle={{ paddingBottom: 40 }}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
       </View>
     </View>
   );

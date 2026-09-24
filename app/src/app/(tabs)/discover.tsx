@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Image, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Dimensions, Image, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
 import { LinearGradient } from 'expo-linear-gradient';
+import { supabase } from '../../lib/supabase';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,30 +16,81 @@ import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-g
 import * as Haptics from 'expo-haptics';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { Typography } from '../../components/ui/Typography';
+import { useRouter } from 'expo-router';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SWIPE_THRESHOLD_X = SCREEN_WIDTH * 0.3;
 const SWIPE_THRESHOLD_Y = SCREEN_HEIGHT * 0.2;
 
-const MOCK_PROFILES = [
-  { id: '1', name: 'Aarav', age: 21, college: 'IIT Delhi', bio: 'Coffee & Code. Swipe up if you want to grab matcha later!', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800' },
-  { id: '2', name: 'Riya', age: 20, college: 'NIFT Delhi', bio: 'Design student. Always looking for aesthetic cafes.', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800' },
-  { id: '3', name: 'Karan', age: 22, college: 'SRCC', bio: 'Finance bro by day, gamer by night. Let\'s align.', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800' },
-  { id: '4', name: 'Priya', age: 21, college: 'LSR', bio: 'Literature and philosophy. Catch me reading in the sun.', image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800' },
-];
-
 export default function Discover() {
+  const router = useRouter();
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const isSwiping = useSharedValue(false);
 
-  const onSwipeComplete = (direction: 'left' | 'right' | 'up') => {
+  useEffect(() => {
+    fetchFeed();
+  }, []);
+
+  const fetchFeed = async () => {
+    try {
+      const { data, error } = await supabase.rpc('get_feed', {
+        p_mode: 'discover',
+        p_scope: null,
+        p_cursor: null,
+        p_limit: 20
+      });
+
+      if (error) throw error;
+      setProfiles(data || []);
+      setCurrentIndex(0);
+    } catch (err: any) {
+      console.error(err);
+      if (err.message === 'location required') {
+        router.replace('/location-gate' as any);
+      } else {
+        Alert.alert('Error', 'Could not load feed. Please ensure your location is fresh and profile is complete.');
+      }
+    }
+  };
+
+  const getImageUrl = (profile: any) => {
+    if (profile.photos && profile.photos.length > 0) {
+      // In production, this would be a CloudFront URL
+      return `https://align-media.s3.amazonaws.com/${profile.photos[0].s3_key}`;
+    }
+    return 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800';
+  };
+
+  const onSwipeComplete = async (direction: 'left' | 'right' | 'up') => {
+    const swipedProfile = profiles[currentIndex];
     setCurrentIndex((prev) => prev + 1);
     translateX.value = 0;
     translateY.value = 0;
+
+    if (swipedProfile) {
+      try {
+        const isLike = direction === 'right' || direction === 'up';
+        const pDirection = direction === 'up' ? 'super' : (direction === 'right' ? 'like' : 'pass');
+        const { data: isMutual, error } = await supabase.rpc('swipe', {
+          p_target_id: swipedProfile.id,
+          p_direction: pDirection,
+          p_source: 'discover'
+        });
+
+        if (error) console.error('Swipe error:', error);
+        
+        if (isMutual) {
+          Alert.alert("It's a Match!", `You and ${swipedProfile.first_name} liked each other!`);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const forceSwipe = (direction: 'left' | 'right' | 'up') => {
@@ -122,7 +174,7 @@ export default function Discover() {
   }));
 
   const renderCards = () => {
-    if (currentIndex >= MOCK_PROFILES.length) {
+    if (currentIndex >= profiles.length) {
       return (
         <View style={styles.emptyContainer}>
           <View style={styles.radarRing}>
@@ -134,7 +186,7 @@ export default function Discover() {
       );
     }
 
-    return MOCK_PROFILES.map((profile, i) => {
+    return profiles.map((profile, i) => {
       if (i < currentIndex) return null;
 
       if (i === currentIndex) {
@@ -151,14 +203,14 @@ export default function Discover() {
                 <Text style={styles.stampTextLater}>LATER</Text>
               </Animated.View>
 
-              <Image source={{ uri: profile.image }} style={styles.image} />
+              <Image source={{ uri: getImageUrl(profile) }} style={styles.image} />
               <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.gradient}>
                 <View style={styles.cardInfo}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.name}>{profile.name}, {profile.age}</Text>
-                    <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />
+                    <Text style={styles.name}>{profile.first_name}, {profile.age}</Text>
+                    {profile.is_blue_tick && <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />}
                   </View>
-                  <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college}</Text>
+                  <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college?.college_name || 'No College'}</Text>
                   {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
                 </View>
               </LinearGradient>
@@ -172,14 +224,14 @@ export default function Discover() {
 
       return (
         <Animated.View key={profile.id} style={[styles.cardStyle, { top: topOffset, transform: [{ scale }] }]}>
-          <Image source={{ uri: profile.image }} style={styles.image} />
+          <Image source={{ uri: getImageUrl(profile) }} style={styles.image} />
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.gradient}>
             <View style={styles.cardInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.name}>{profile.name}, {profile.age}</Text>
-                <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />
+                <Text style={styles.name}>{profile.first_name}, {profile.age}</Text>
+                {profile.is_blue_tick && <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />}
               </View>
-              <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college}</Text>
+              <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college?.college_name || 'No College'}</Text>
               {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
             </View>
           </LinearGradient>
@@ -193,7 +245,7 @@ export default function Discover() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Typography variant="h1">Discover</Typography>
-          <PressableScale style={styles.filterBtn}>
+          <PressableScale style={styles.filterBtn} onPress={() => router.push('/discovery-settings' as any)}>
             <Ionicons name="options" size={24} color={lightTheme.primary} />
           </PressableScale>
         </View>

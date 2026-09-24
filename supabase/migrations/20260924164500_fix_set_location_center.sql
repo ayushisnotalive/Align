@@ -1,5 +1,4 @@
--- 11. set_location()
--- Server rounds to ~1km precision, resolves the nearest city, and sets permission state
+-- Fix for c.location bug in set_location()
 create or replace function public.set_location(
   p_lat double precision,
   p_lng double precision,

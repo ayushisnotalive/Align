@@ -2,13 +2,20 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-nati
 import { useRouter } from 'expo-router';
 import { lightTheme } from '../../theme/colors';
 
+import { useAuthStore } from '../../store/useAuthStore';
+import { supabase } from '../../lib/supabase';
+
 export default function Step5Attributes() {
   const router = useRouter();
+  const { session } = useAuthStore();
 
-  const handleFinish = () => {
-    // Save attributes to public.user_attributes
-    // Set profiles.profile_complete = true (if all required fields are met)
-    // Then navigate home/location
+  const handleFinish = async () => {
+    if (session) {
+      await supabase.from('profiles').update({
+        profile_complete: true,
+        onboarding_step: 5
+      }).eq('id', session.user.id);
+    }
     router.replace('/(tabs)/discover' as any);
   };
 

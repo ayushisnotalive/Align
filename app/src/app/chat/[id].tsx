@@ -4,44 +4,110 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { GiftedChat, IMessage, Bubble, InputToolbar, Composer, Send } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
-import Animated, { useAnimatedKeyboard, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
+import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
 import { Typography } from '../../components/ui/Typography';
 import { PressableScale } from '../../components/ui/PressableScale';
+import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { id, name } = useLocalSearchParams();
+  const { id: matchId, name } = useLocalSearchParams<{ id: string; name: string }>();
   const [messages, setMessages] = useState<IMessage[]>([]);
+  const { session } = useAuthStore();
   
   // Reanimated 3 animated keyboard
   const keyboard = useAnimatedKeyboard();
   
   const animatedPaddingStyle = useAnimatedStyle(() => {
     return {
-      paddingBottom: Math.max(0, keyboard.height.value - 30), // GiftedChat has some internal padding
+      paddingBottom: Math.max(0, keyboard.height.value - 30),
     };
   });
 
   useEffect(() => {
-    setMessages([
-      {
-        _id: 1,
-        text: 'Hey! Are you going to the fest tomorrow?',
-        createdAt: new Date(),
-        user: {
-          _id: 2,
-          name: name as string || 'Match',
-          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800',
-        },
-      },
-    ]);
-  }, []);
+    if (!matchId) return;
 
-  const onSend = useCallback((newMessages: IMessage[] = []) => {
-    setMessages(previousMessages =>
-      GiftedChat.append(previousMessages, newMessages),
-    );
-  }, []);
+    fetchMessages();
+
+    // Subscribe to new messages for this match
+    const messagesChannel = supabase
+      .channel(`chat_${matchId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `match_id=eq.${matchId}`,
+        },
+        (payload) => {
+          const newMessage = payload.new;
+          if (newMessage.sender_id !== session?.user.id) {
+            const giftedMsg: IMessage = {
+              _id: newMessage.id,
+              text: newMessage.body,
+              createdAt: new Date(newMessage.created_at),
+              user: {
+                _id: newMessage.sender_id,
+                name: name as string,
+              },
+            };
+            setMessages((prev) => GiftedChat.append(prev, [giftedMsg]));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [matchId]);
+
+  const fetchMessages = async () => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('match_id', matchId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching messages:', error);
+    } else if (data) {
+      const formattedMessages: IMessage[] = data.map(m => ({
+        _id: m.id,
+        text: m.body,
+        createdAt: new Date(m.created_at),
+        user: {
+          _id: m.sender_id,
+          name: m.sender_id === session?.user.id ? 'Me' : (name as string),
+        },
+      }));
+      setMessages(formattedMessages);
+    }
+  };
+
+  const onSend = useCallback(async (newMessages: IMessage[] = []) => {
+    const msg = newMessages[0];
+    if (!msg || !session?.user.id) return;
+
+    // Optimistically update UI
+    setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
+
+    // Send to Supabase
+    const { error } = await supabase
+      .from('messages')
+      .insert({
+        match_id: matchId,
+        sender_id: session.user.id,
+        body: msg.text,
+      });
+
+    if (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message.');
+    }
+  }, [matchId, session?.user.id]);
 
   const renderBubble = (props: any) => {
     return (
@@ -112,13 +178,9 @@ export default function ChatScreen() {
       'What would you like to do?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Unmatch', style: 'destructive', onPress: () => {
+        { text: 'Unmatch', style: 'destructive', onPress: async () => {
+          await supabase.from('matches').update({ status: 'unmatched', unmatched_by: session?.user.id }).eq('id', matchId);
           Alert.alert('Unmatched', 'You have unmatched this user.');
-          router.back();
-        }},
-        { text: 'Report', style: 'destructive', onPress: () => Alert.alert('Reported', 'User has been reported to admins.') },
-        { text: 'Block', style: 'destructive', onPress: () => {
-          Alert.alert('Blocked', 'User has been blocked.');
           router.back();
         }},
       ]
@@ -141,13 +203,13 @@ export default function ChatScreen() {
         <GiftedChat
           messages={messages}
           onSend={messages => onSend(messages)}
-          user={{ _id: 1 }}
+          user={{ _id: session?.user?.id || '' }}
           renderBubble={renderBubble}
           renderInputToolbar={renderInputToolbar}
           renderComposer={renderComposer}
           renderSend={renderSend}
-          // @ts-ignore - bottomOffset might not be typed properly in this version
-          bottomOffset={0} // Handled by Reanimated
+          // @ts-ignore
+          bottomOffset={0} 
           minInputToolbarHeight={70}
         />
       </Animated.View>

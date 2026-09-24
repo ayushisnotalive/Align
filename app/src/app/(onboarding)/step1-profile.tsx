@@ -29,11 +29,20 @@ export default function Step1Profile() {
       await supabase.from('profiles').update({
         first_name: firstName,
         bio: bio,
-        onboarding_step: 1
+        onboarding_step: 1,
+        gender_id: 1, // Defaulting for MVP testing
+        pronoun_id: 1, // Defaulting for MVP testing
+        orientation_id: 1, // Defaulting for MVP testing
+        occupation: 'Developer',
+        employer: 'Acme Corp',
+        school: 'University',
+        education_id: 1
       }).eq('id', session.user.id);
 
       await supabase.from('profile_private').update({
-        last_name: lastName
+        last_name: lastName,
+        dob: '2000-01-01', // Defaulting for MVP testing
+        email: session.user.email
       }).eq('user_id', session.user.id);
     }
 

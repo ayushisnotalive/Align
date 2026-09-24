@@ -85,7 +85,7 @@ returns table (
 language sql security definer set search_path = public as $$
   select 
     lp.user_id,
-    p.name,
+    p.first_name,
     lp.goal_code,
     lp.type_codes,
     lp.expires_at
