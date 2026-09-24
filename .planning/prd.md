@@ -1,21 +1,21 @@
 # PRD: Align Beta v1
 
 ## 1. Goal
-Ship a secure, working Android dating app to a closed beta (200-500 users, one
+Ship a secure, working cross-platform (iOS and Android) dating app to a closed beta (200-500 users, one
 campus/city first) in 14 days, and learn whether users return by day 7.
 
 ## 2. Who it is for
 Adults 18+ in India. Everyone can join. College is a primary tab, not a requirement.
 
 ## 3. Scope
-**In beta:** phone OTP login, mandatory location, full profile, Discover, College,
+**In beta:** email OTP login (plus unverified phone collection), mandatory location, full profile, Discover, College,
 Explore (Live Relationship Space), matches, chat, message requests, block/report,
 blue tick (email + face), push notifications, feature flags.
 **Out of beta (flags only):** ads, payments/subscriptions, video calls, boosts.
 **Never:** hookup branding, sexual imagery, exact-location display.
 
 ## 4. Core rules
-- Login: phone + OTP. Session persists until uninstall.
+- Login: Email + Phone number entered together. Only Email is verified via OTP. Session persists until uninstall.
 - No location permission = no app. Server rejects feed calls without fresh location.
 - Age 18+ enforced by a database trigger.
 - College: pick from the list, then submit a college ID photo (and optional college
@@ -25,7 +25,7 @@ blue tick (email + face), push notifications, feature flags.
 - Users set up to 3 explicit places (state + city) and a radius (km).
 
 ## 5. Profile fields
-**Required (no skip):** first name, last name, phone (from login), email, DOB,
+**Required (no skip):** first name, last name, email (from login), phone (collected during login), DOB,
 gender, pronouns, orientation, occupation, employer, school ("N/A" allowed),
 education level, bio, 3-6 photos.
 **Optional (skippable, editable later, each with visibility public / matches only / hidden):**
@@ -75,7 +75,7 @@ Text: #1E1A24 light / #F5EFF7 dark. Colors defined only in `ui/theme`.
 - Public name = first name only. Last name, email, DOB, phone are private.
 - Location: coarse (~1 km) point rounded on the server; show "about X km".
 - City-per-day history, 90-day retention. Device data limited to install id,
-  model, OS, app version, locale, timezone, push token, Play Integrity verdict.
+  model, OS, app version, locale, timezone, push token, App Attest / Play Integrity verdict.
 - Not collected: IMEI, MAC, Wi-Fi name, battery, advertising ID (until ads launch).
 - Sensitive fields and face data need explicit consent rows. Never used for ads.
 - Account deletion: 14-day grace, then all personal rows and S3 objects purged.
@@ -84,7 +84,7 @@ Text: #1E1A24 light / #F5EFF7 dark. Colors defined only in `ui/theme`.
 ## 11. Non-functional requirements
 - Feed query under 300 ms at 10k profiles (spatial + composite indexes).
 - Chat delivery under 2 s on normal networks.
-- No secrets in the APK or repo. RLS on 100% of tables.
+- No secrets in the client app or repo. RLS on 100% of tables.
 - Crash-free sessions above 99% in beta.
 
 ## 12. Success metrics
@@ -95,11 +95,11 @@ messages per match · reports per 100 users · % completing onboarding.
 | Risk | Plan |
 |---|---|
 | Empty app (cold start) | Launch one campus/city; seed personally |
-| Fake profiles / minors | Blue tick, age trigger, reports, bans by phone/device/email hash |
+| Fake profiles / minors | Blue tick, age trigger, reports, bans by email/device/phone hash |
 | Harassment | Message request limits, block/report everywhere, admin queue |
-| Play policy rejection | Neutral wording, UGC moderation, Data Safety form done honestly |
+| App Store / Play policy rejection | Neutral wording, UGC moderation, Data Safety form done honestly |
 | SMS/DLT delay | Start registration on day 1 |
-| Play testing requirements for new accounts | Check current rules on day 1 |
+| Store testing requirements for new accounts | Check current rules on day 1 |
 | Quota lockouts in Antigravity | Sonnet by default, commit often, keep a fallback plan |
 
 ## 14. Open decisions

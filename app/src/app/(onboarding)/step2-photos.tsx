@@ -15,7 +15,7 @@ export default function Step2Photos() {
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [3, 4],
       quality: 0.8,
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   photoSlot: {
     width: '31%',
     aspectRatio: 3/4,
-    backgroundColor: lightTheme.card,
+    backgroundColor: lightTheme.surface,
     borderRadius: 12,
     marginBottom: 16,
     justifyContent: 'center',

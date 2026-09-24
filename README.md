@@ -1,6 +1,6 @@
 # Align — Dating App (Beta)
 
-Android app (kotlin + Jetpack Compose) on Supabase, with media on AWS S3.
+React Native Expo app on Supabase, with media on AWS S3.
 
 ## Docs
 - `prd.md` — what we are building and why
@@ -9,8 +9,8 @@ Android app (kotlin + Jetpack Compose) on Supabase, with media on AWS S3.
 - `supabase/migrations/` — the database schema (source of truth)
 
 ## Prerequisites
-- Android Studio (latest stable), JDK 17
 - Node 20+ and the Supabase CLI (`npm i -g supabase` or use `npx supabase`)
+- Expo CLI (`npm install -g eas-cli`)
 - Docker Desktop (only needed for local `supabase start` / `db reset`)
 - Accounts: Supabase, AWS, Firebase (FCM), Google Play Console
 - An SMS provider for phone OTP (India needs DLT registration; start early)
@@ -20,7 +20,7 @@ Android app (kotlin + Jetpack Compose) on Supabase, with media on AWS S3.
 2. **Enable in each project:** Authentication > Phone provider (use test numbers in dev).
 3. **Environment files**
    - `cp .env.example .env` and `cp .env.example supabase/.env`, then fill dev values.
-   - Add Android values to `local.properties` (see `.env.example`).
+   - For Expo, you may also need a `.env` inside the `app/` directory (e.g. `EXPO_PUBLIC_SUPABASE_URL`).
    - Confirm `.gitignore` is committed BEFORE adding any secret.
 4. **Link the CLI to dev and push the schema**
 ```bash
@@ -40,8 +40,8 @@ Android app (kotlin + Jetpack Compose) on Supabase, with media on AWS S3.
 ```bash
      supabase secrets set --env-file supabase/.env
 ```
-7. **Firebase:** add the Android app, download `google-services.json` (gitignored).
-8. **Run the app:** open `android/` in Android Studio, pick the `dev` build variant.
+7. **Firebase (optional if using Expo push):** add the app for FCM push if manually managing.
+8. **Run the app:** cd into `app/` and run `npm start` (or `npx expo start`).
 
 ## How Supabase learns your schema
 It only knows what is in migration files. Every schema change = a new file:
@@ -78,7 +78,7 @@ supabase db lint                     # catch SQL issues
 ```
 
 ## Security in one paragraph
-The Android app is untrusted. It holds only the Supabase URL and anon key.
+The client app is untrusted. It holds only the Supabase URL and anon key.
 All rules (age, limits, location freshness, matching, blocks) are enforced by
 RLS, column-level grants, and security-definer functions. Private fields live
 in `profile_private`. Face selfies are deleted within 24 hours. Never commit `.env`.

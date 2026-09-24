@@ -4,8 +4,8 @@
 - [x] Phase 1: Database & Security (`auth`, `location`, `schema`)
 
 ## Milestone 2: MVP Features
-- [x] Phase 2: Auth and Location Gate (`splash`, `login`, `consents`)
-- [x] Phase 3: Profile & Verification (`onboarding`, `S3`, `college_verify`)
+- [ ] Phase 2: Auth and Location Gate (`splash`, `login`, `consents`)
+- [ ] Phase 3: Profile & Verification (`onboarding`, `S3`, `college_verify`)
 - [ ] Phase 4: Discover & College (`feeds`, `swipe`)
 - [ ] Phase 5: Matches & Chat (`matches`, `realtime`)
 

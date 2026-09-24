@@ -1,3 +1,0 @@
-# Domain layer — repository interfaces, use-cases, and domain models live here.
-# No Android framework imports. No Supabase imports.
-# See AGENTS.md §ARCHITECTURE.

@@ -1,18 +1,24 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, FlatList } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, StyleSheet, ScrollView, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
+import { Typography } from '../../components/ui/Typography';
+import { PressableScale } from '../../components/ui/PressableScale';
+import { FlashList } from '@shopify/flash-list';
 
 const MOCK_NEW_MATCHES = [
   { id: '1', name: 'Aarav', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800' },
   { id: '2', name: 'Riya', image: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=800' },
   { id: '3', name: 'Karan', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800' },
+  { id: '4', name: 'Priya', image: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=800' },
 ];
 
 const MOCK_CONVERSATIONS = [
   { id: '10', name: 'Priya', image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800', lastMessage: 'Hey, are you going to the fest tomorrow?', time: '2m' },
   { id: '11', name: 'Rohan', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=800', lastMessage: 'Haha that is hilarious 😂', time: '1h' },
+  { id: '12', name: 'Neha', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=800', lastMessage: 'See you at 5!', time: 'Yesterday' },
+  { id: '13', name: 'Kabir', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=800', lastMessage: 'What\'s up?', time: 'Tuesday' },
 ];
 
 export default function Matches() {
@@ -25,59 +31,87 @@ export default function Matches() {
     });
   };
 
-  const handleOpenRequests = () => {
-    router.push('/requests' as any);
-  };
+  const renderHeader = () => (
+    <View style={styles.listHeader}>
+      {/* Message Requests Banner */}
+      <PressableScale 
+        style={styles.requestsBanner} 
+        onPress={() => router.push('/requests' as any)}
+      >
+        <View style={styles.requestsLeft}>
+          <View style={styles.requestsIcon}>
+            <Ionicons name="mail-unread" size={20} color={lightTheme.primary} />
+          </View>
+          <Typography variant="h4">Message Requests</Typography>
+        </View>
+        <View style={styles.requestsRight}>
+          <View style={styles.badge}><Typography variant="caption" color="#fff">3</Typography></View>
+          <Ionicons name="chevron-forward" size={20} color="#ccc" />
+        </View>
+      </PressableScale>
+
+      {/* New Matches Queue */}
+      <Typography variant="h3" style={styles.sectionTitle}>New Matches</Typography>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false} 
+        contentContainerStyle={styles.matchesQueue}
+      >
+        {MOCK_NEW_MATCHES.map(match => (
+          <PressableScale 
+            key={match.id} 
+            style={styles.matchItem} 
+            onPress={() => handleOpenChat(match.id, match.name)}
+          >
+            <View style={styles.matchImageContainer}>
+              <Image source={{ uri: match.image }} style={styles.matchImage} />
+              <View style={styles.matchDot} />
+            </View>
+            <Typography variant="bodySmall" weight="600">{match.name}</Typography>
+          </PressableScale>
+        ))}
+      </ScrollView>
+
+      <Typography variant="h3" style={styles.sectionTitle}>Messages</Typography>
+    </View>
+  );
+
+  const renderItem = useCallback(({ item }: { item: typeof MOCK_CONVERSATIONS[0] }) => (
+    <PressableScale 
+      style={styles.chatRow} 
+      onPress={() => handleOpenChat(item.id, item.name)}
+      scaleTo={0.98}
+    >
+      <Image source={{ uri: item.image }} style={styles.chatImage} />
+      <View style={styles.chatContent}>
+        <View style={styles.chatHeader}>
+          <Typography variant="h4">{item.name}</Typography>
+          <Typography variant="bodySmall">{item.time}</Typography>
+        </View>
+        <Typography variant="body" color={lightTheme.textSecondary} numberOfLines={1}>
+          {item.lastMessage}
+        </Typography>
+      </View>
+    </PressableScale>
+  ), []);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+        <Typography variant="h1">Messages</Typography>
       </View>
 
-      <ScrollView style={styles.scroll}>
-        {/* Message Requests Banner (Conditional) */}
-        <TouchableOpacity style={styles.requestsBanner} onPress={handleOpenRequests}>
-          <View style={styles.requestsLeft}>
-            <View style={styles.requestsIcon}>
-              <Ionicons name="mail-unread" size={20} color="#fff" />
-            </View>
-            <Text style={styles.requestsText}>Message Requests</Text>
-          </View>
-          <View style={styles.requestsRight}>
-            <View style={styles.badge}><Text style={styles.badgeText}>3</Text></View>
-            <Ionicons name="chevron-forward" size={20} color="#888" />
-          </View>
-        </TouchableOpacity>
-
-        {/* New Matches Queue */}
-        <Text style={styles.sectionTitle}>New Matches</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.matchesQueue}>
-          {MOCK_NEW_MATCHES.map(match => (
-            <TouchableOpacity key={match.id} style={styles.matchItem} onPress={() => handleOpenChat(match.id, match.name)}>
-              <Image source={{ uri: match.image }} style={styles.matchImage} />
-              <Text style={styles.matchName}>{match.name}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* Conversations List */}
-        <Text style={styles.sectionTitle}>Messages</Text>
-        <View style={styles.conversationsList}>
-          {MOCK_CONVERSATIONS.map(chat => (
-            <TouchableOpacity key={chat.id} style={styles.chatRow} onPress={() => handleOpenChat(chat.id, chat.name)}>
-              <Image source={{ uri: chat.image }} style={styles.chatImage} />
-              <View style={styles.chatContent}>
-                <View style={styles.chatHeader}>
-                  <Text style={styles.chatName}>{chat.name}</Text>
-                  <Text style={styles.chatTime}>{chat.time}</Text>
-                </View>
-                <Text style={styles.chatPreview} numberOfLines={1}>{chat.lastMessage}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+      <View style={styles.listContainer}>
+        <FlashList
+          data={MOCK_CONVERSATIONS}
+          renderItem={renderItem}
+          // @ts-ignore
+          estimatedItemSize={88}
+          ListHeaderComponent={renderHeader}
+          contentContainerStyle={{ paddingBottom: 40 }}
+          showsVerticalScrollIndicator={false}
+        />
+      </View>
     </View>
   );
 }
@@ -91,31 +125,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 60,
     paddingBottom: 16,
+    backgroundColor: lightTheme.background,
   },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: lightTheme.text,
-  },
-  scroll: {
+  listContainer: {
     flex: 1,
+  },
+  listHeader: {
+    paddingBottom: 16,
   },
   requestsBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    marginHorizontal: 24,
+    backgroundColor: lightTheme.surface,
+    marginHorizontal: 20,
     padding: 16,
-    borderRadius: 16,
-    marginBottom: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: lightTheme.border,
+    borderRadius: 20,
+    marginBottom: 32,
+    ...lightTheme.shadows.sm,
   },
   requestsLeft: {
     flexDirection: 'row',
@@ -123,17 +150,12 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   requestsIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: lightTheme.primary,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: lightTheme.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  requestsText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: lightTheme.text,
   },
   requestsRight: {
     flexDirection: 'row',
@@ -141,52 +163,52 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   badge: {
-    backgroundColor: '#ff4b4b',
+    backgroundColor: lightTheme.danger,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 2,
     borderRadius: 12,
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    minWidth: 24,
+    alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: lightTheme.text,
     marginLeft: 24,
     marginBottom: 16,
   },
   matchesQueue: {
     paddingHorizontal: 24,
-    gap: 16,
+    gap: 20,
     marginBottom: 32,
   },
   matchItem: {
     alignItems: 'center',
-    width: 72,
+    width: 80,
+  },
+  matchImageContainer: {
+    position: 'relative',
+    marginBottom: 8,
   },
   matchImage: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    marginBottom: 8,
-    borderWidth: 2,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
     borderColor: lightTheme.primary,
   },
-  matchName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: lightTheme.text,
-  },
-  conversationsList: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+  matchDot: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: lightTheme.success,
+    borderWidth: 3,
+    borderColor: lightTheme.background,
   },
   chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 24,
     marginBottom: 24,
   },
   chatImage: {
@@ -197,27 +219,14 @@ const styles = StyleSheet.create({
   },
   chatContent: {
     flex: 1,
+    paddingBottom: 24,
     borderBottomWidth: 1,
     borderBottomColor: lightTheme.border,
-    paddingBottom: 24,
   },
   chatHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
-  },
-  chatName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: lightTheme.text,
-  },
-  chatTime: {
-    fontSize: 14,
-    color: '#888',
-  },
-  chatPreview: {
-    fontSize: 16,
-    color: '#666',
+    marginBottom: 6,
   },
 });

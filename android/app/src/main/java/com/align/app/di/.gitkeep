@@ -1,3 +1,0 @@
-# DI layer — Hilt modules that wire data implementations to domain interfaces.
-# One module per feature, named <Feature>Module.kt.
-# See AGENTS.md §ARCHITECTURE.

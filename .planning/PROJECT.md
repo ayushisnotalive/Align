@@ -13,13 +13,14 @@ Web platform (Android only for now).
 </non_goals>
 
 <decisions>
-- Architecture: Android Clean Architecture (data, domain, ui, di) with Jetpack Compose.
+- Architecture: React Native with Expo (TypeScript).
+- State Management: Zustand + React Query.
 - Backend: Supabase (Auth, Postgres, Realtime, Storage, Edge Functions).
 - Security: RLS heavily used; all mutations via `security definer` RPCs.
-- Session: EncryptedSharedPreferences (allowBackup=false).
+- Storage: Expo SecureStore for session persistence.
 </decisions>
 
 <constraints>
-- Min SDK 26, Target SDK 35
-- 60-30-10 theme ratio
+- Cross-platform support for iOS and Android.
+- 60-30-10 theme ratio.
 </constraints>

@@ -8,20 +8,20 @@ import { useAuthStore } from '../../store/useAuthStore';
 export default function Step1Profile() {
   const router = useRouter();
   const { session } = useAuthStore();
-  
+
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [bio, setBio] = useState('');
 
   // We will need proper pickers for these IDs, but for simplicity in this scaffold, we'll hardcode or use basic inputs.
   // In a real app we'd fetch public.lookup_values where list_key='gender', etc.
-  
+
   const handleNext = async () => {
     if (!firstName || !lastName || !bio) {
       Alert.alert('Missing Fields', 'Please fill out all required fields to proceed.');
       return;
     }
-    
+
     // Save to profile
     // Note: To truly complete the profile, all required fields must be set (gender_id, pronoun_id, etc).
     // For now we just save what we have and proceed to the next step.
@@ -31,7 +31,7 @@ export default function Step1Profile() {
         bio: bio,
         onboarding_step: 1
       }).eq('id', session.user.id);
-      
+
       await supabase.from('profile_private').update({
         last_name: lastName
       }).eq('user_id', session.user.id);
@@ -43,7 +43,7 @@ export default function Step1Profile() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Basic Info</Text>
-      
+
       <TextInput
         style={styles.input}
         placeholder="First Name"
@@ -51,7 +51,7 @@ export default function Step1Profile() {
         value={firstName}
         onChangeText={setFirstName}
       />
-      
+
       <TextInput
         style={styles.input}
         placeholder="Last Name"
@@ -59,7 +59,7 @@ export default function Step1Profile() {
         value={lastName}
         onChangeText={setLastName}
       />
-      
+
       <TextInput
         style={[styles.input, styles.textArea]}
         placeholder="Bio"
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   input: {
-    backgroundColor: lightTheme.card,
+    backgroundColor: lightTheme.surface,
     borderRadius: 12,
     padding: 16,
     fontSize: 16,

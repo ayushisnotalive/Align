@@ -1,17 +1,15 @@
 ---
 status: active
-current_phase: 4
-progress: 23
+current_phase: 2
+progress: 11
 ---
 # Status
 
-Phase 3 (Profile, media and college verification) is complete. The onboarding step flow, S3 photo upload pipeline, and real database lookups are all implemented and wired up.
-
-Currently moving to Phase 4 (Discover & College feeds).
+We are rewriting the frontend from Native Android (Kotlin/Compose) to React Native (Expo). Phase 1 (Database) is complete. We are currently starting Phase 2 (Auth and Location Gate) in the new React Native codebase.
 
 ### Blockers/Concerns
 
-None currently.
+Need to set up the Expo project and configure Supabase JS client.
 
 ### Quick Tasks Completed
 

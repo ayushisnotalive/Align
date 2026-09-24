@@ -1,3 +1,0 @@
-# Data layer — Supabase + AWS implementations live here ONLY.
-# Screens never import from this package directly.
-# See AGENTS.md §ARCHITECTURE.

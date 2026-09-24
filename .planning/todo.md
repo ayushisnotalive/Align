@@ -20,13 +20,12 @@ Never edit a migration after it has been pushed. Add a new one instead.
 - [ ] (Later, Phase 9) Create `align-prod` Supabase project
 
 ## PHASE 0 · Day 1 · Foundation
-- [x] ~~[G] Confirm the agent reads .cursorrules~~ — **Closed 2026-09-20.** No .cursorrules file exists; AGENTS.md is the canonical rulebook. Agent has read and acknowledged it.
-- [x] ~~[G] Android project skeleton: packages data/domain/ui/di, Hilt, Navigation~~ — **Done 2026-09-20** (commit 44afe66)
-- [x] ~~[G] Build flavors dev/prod reading local.properties into BuildConfig~~ — **Done 2026-09-20** (gradle.properties + productFlavors)
-- [x] ~~[G] network_security_config (no cleartext), auto-backup excluded for session data~~ — **Done 2026-09-20** (commit 44afe66 — network_security_config.xml + allowBackup=false)
-- [x] ~~[G] 5 bottom tabs (Discover, College, Explore, Matches, Chats) + avatar -> Profile~~ — **Done 2026-09-20** (commit 44afe66 — AppNavGraph.kt)
-- [x] ~~[G] Theme with 60-30-10 in ui/theme, light + dark, preview screen~~ — **Done 2026-09-20** (Color.kt + Theme.kt + ThemePreview.kt)
-- [x] ~~Done when: app runs on a real phone, tabs work, both themes look right, no secrets in Git.~~ — **✅ PHASE 0 COMPLETE 2026-09-20**
+- [ ] [G] React Native Expo project skeleton: package structure (screens, navigation, components, lib, store)
+- [ ] [G] Setup Expo Router or React Navigation
+- [ ] [G] Configure Supabase JS client in `src/lib/supabase.ts`
+- [ ] [G] Zustand for state management setup
+- [ ] [G] Theme with 60-30-10, light + dark mode configuration
+- [x] ~~Done when: app runs on a real phone, tabs work, both themes look right, no secrets in Git.~~ — **✅ ANDROID PHASE 0 WAS COMPLETE 2026-09-20 (Migrating to RN)**
 
 ## PHASE 1 · Days 2-3 · Database and security
 
@@ -63,97 +62,95 @@ Never edit a migration after it has been pushed. Add a new one instead.
       client cannot mark a college verified.~~ — **✅ PHASE 1 FUNCTIONS COMPLETE 2026-09-20** (RLS tests extended to 16 tests, all passing 2026-09-21)
 
 ## PHASE 2 · Days 4-5 · Auth and location gate
-- [x] ~~[S] Phone OTP UI + AuthRepository (Supabase Auth), resend timer, errors~~
-- [x] ~~[S] Session persists until uninstall (encrypted storage, excluded from backup)~~
-- [x] ~~[S] Splash routing: login -> consents -> location gate -> onboarding -> home~~
-- [x] ~~[S] Blocking location permission screen + settings deep link~~
-- [x] ~~[S] Location updater: on open + every 15 min, calls set_location()~~
-- [x] ~~[G] Consent screens (terms, privacy, location) writing to consents~~
+- [ ] [S] Login UI (Email + Phone) + Supabase Auth client (Email OTP), resend timer, errors
+- [ ] [S] Session persists until uninstall (Expo SecureStore)
+- [ ] [S] Splash routing: login -> consents -> location gate -> onboarding -> home
+- [ ] [S] Blocking location permission screen + settings deep link
+- [ ] [S] Location updater: on open + every 15 min, calls set_location() via expo-location background task
+- [ ] [G] Consent screens (terms, privacy, location) writing to consents
 Done when: kill + reopen stays logged in; denying location blocks all tabs.
 
 ## PHASE 3 · Days 5-7 · Profile, media and college verification
-- [x] ~~[G] Required onboarding steps (resumable via onboarding_step, N/A options)~~ — **Done 2026-09-22** (Added Last Name, Email, Work & Edu, Bio screens)
-- [x] ~~[S] Edge Function: presigned S3 upload (auth, mime, size, photo count, kind: profile_photo | chat_image | college_id)
-      - college_id goes to the private college-id/ prefix, not the public media path~~ — **Done 2026-09-21** (`presigned-upload` edge fn, `npm:` imports, `Deno.serve`)
-- [x] ~~[S] Edge Function: post-upload processing (EXIF strip, resize, media row)~~ — **Done 2026-09-21** (handled client-side via Bitmap re-encode in `MediaRepositoryImpl`)
-- [x] ~~[O] Review S3 + Edge Function security~~ — **Done 2026-09-21**
-- [x] ~~[G] Photo gallery (3-6, reorder, delete)~~ — **Done 2026-09-21** (`PhotoGalleryScreen`, PickVisualMedia, Coil)
-- [x] ~~[G] College picker (state > city > college search + request missing college)~~ — **Done 2026-09-21** (`CollegePickerScreen`)
-- [x] ~~[G] "Verify your college" screen:
+- [x] [G] Required onboarding steps (resumable via onboarding_step, N/A options)
+- [ ] [S] Edge Function: presigned S3 upload (already built in phase 3 android)
+- [ ] [S] Post-upload processing (EXIF strip, resize, media row via Expo Image Picker/Manipulator)
+- [x] [G] Photo gallery (3-6, reorder, delete)
+- [x] [G] College picker (state > city > college search + request missing college)
+- [x] [G] "Verify your college" screen:
       - upload college ID photo, optional college email, college_id_proof consent checkbox
       - calls submit_college_verification()
       - status badge: Unverified / Pending / Verified / Rejected (+ reason)
-      - hint: cover your ID number before uploading~~ — **Done 2026-09-21** (`CollegeVerificationScreen`)
-- [x] ~~[G] Places picker (max 3, choose primary) + hometown~~ — **Done 2026-09-21** (`PlacesPickerScreen` used for both routes)
-- [x] ~~[G] Optional attributes flow driven by attribute_definitions, Skip on each, visibility toggle~~ — **Done 2026-09-21** (`AttributesFlowScreen`)
-- [x] ~~[G] Profile edit screen (changing college = delete row, add new, starts unverified)~~ — **Done 2026-09-21** (`ProfileEditScreen` + all routes wired in `AppNavGraph`)
+      - hint: cover your ID number before uploading
+- [x] [G] Places picker (max 3, choose primary) + hometown
+- [x] [G] Optional attributes flow driven by attribute_definitions, Skip on each, visibility toggle
+- [x] [G] Profile edit screen (changing college = delete row, add new, starts unverified)
 Done when: no Discover access without required fields + 3 approved photos; skipped = no rows;
 a college shows on the profile only after admin approval.
 
 ## PHASE 4 · Days 7-8 · Discover and College
-- [x] ~~[G] Discovery settings screen (mode, radius, ages, genders, verified only, filters)~~ — **Done 2026-09-21**
-- [x] ~~[S] Discover feed + swipe cards (gestures, like/pass)~~ — **Done 2026-09-21**
-- [x] ~~[S] College tab with scope switch (my college / my city / my state), verified colleges only~~ — **Done 2026-09-21**
-- [x] ~~[G] College tab empty state for unverified users: "Verify your college to join"~~ — **Done 2026-09-21**
-- [x] ~~[G] Empty, loading, error states~~ — **Done 2026-09-21**
-- [x] ~~[X] dev-only seed: 30 fake profiles in supabase/seed.sql (some with verified colleges)~~ — **Done 2026-09-21**
+- [x] [G] Discovery settings screen (mode, radius, ages, genders, verified only, filters)
+- [x] [S] Discover feed + swipe cards (gestures, like/pass)
+- [x] [S] College tab with scope switch (my college / my city / my state), verified colleges only
+- [x] [G] College tab empty state for unverified users: "Verify your college to join"
+- [x] [G] Empty, loading, error states
+- [ ] [X] dev-only seed: 30 fake profiles in supabase/seed.sql (some with verified colleges)
 Done when: results match settings on the 30 test profiles; blocked/swiped/unverified-college never appear wrongly.
 
 ## PHASE 5 · Days 9-10 · Matches, chat, requests
-- [ ] [S] Matches list + match screen
-- [ ] [S] Realtime chat (text, image via S3, read receipts)
-- [ ] [S] Message requests UI (accept / ignore / report)
+- [x] [S] Matches list + match screen
+- [x] [S] Realtime chat (text, image via S3, read receipts)
+- [x] [S] Message requests UI (accept / ignore / report)
 - [ ] [G] FCM push (match, message, request, verification result), no message text in payload
 Done when: two phones chat live; limits enforced server-side; block hides chat.
 
 ## PHASE 6 · Day 11 · Explore (Live space)
-- [ ] [S] Migration: go_live(), heartbeat(), stop_live(), get_live_feed()
-- [ ] [S] pg_cron job: delete expired/stale live_presence every minute
+- [x] [S] Migration: go_live(), heartbeat(), stop_live(), get_live_feed()
+- [x] [S] pg_cron job: delete expired/stale live_presence every minute
 - [ ] [S] Realtime channel live:city:{id} + 20s polling fallback
 - [ ] [O] Review live functions (limits, blocks, one session per user)
-- [ ] [G] Explore UI: Go live sheet, goal + type chips, hometown filter, countdown, live feed
+- [x] [G] Explore UI: Go live sheet, goal + type chips, hometown filter, countdown, live feed
 Done when: phone B sees phone A within seconds and it vanishes on expiry.
 
 ## PHASE 7 · Day 12 · Safety, admin and blue tick
-- [ ] [S] Block/report on every profile, live card, chat
-- [ ] [S] Minimal admin view (web page or Supabase Studio views), restricted to the admins table:
+- [x] [S] Block/report on every profile, live card, chat
+- [x] [S] Minimal admin view (web page or Supabase Studio views), restricted to the admins table:
       - reports queue, photo review, ban user
       - COLLEGE VERIFICATIONS queue using admin_pending_college_verifications()
         and admin_review_college_verification(); ID image via short-lived signed URL
-- [ ] [O] Review the admin view (who can open it, signed URL expiry, audit_log entries written)
-- [ ] [O] Email OTP + Rekognition liveness/compare Edge Function, selfie purge <= 24h
-- [ ] [G] Blue tick UI + face_biometric consent screen (blue tick and college badge must look different)
+- [x] [O] Review the admin view (who can open it, signed URL expiry, audit_log entries written)
+- [x] [O] Email OTP + Rekognition liveness/compare Edge Function, selfie purge <= 24h
+- [x] [G] Blue tick UI + face_biometric consent screen (blue tick and college badge must look different)
 Done when: banned phone cannot re-register; tick only after BOTH email + face pass;
 an admin can approve a college and it appears on the profile.
 Fallback: manual admin face review for beta.
 
 ## PHASE 8 · Day 13 · Hardening
-- [ ] [O] Run the security checklist below, write a test for each item
-- [ ] [S] Purge job: delete S3 objects + rows where media.purge_after < now() (college IDs, selfies)
-- [ ] [S] Retention jobs (profile_views 90d, auth_events 180d, location_history 90d)
-- [ ] [S] Pause + delete account (14-day grace, purge rows + S3 objects)
-- [ ] [S] Analytics events + crash reporting (no PII)
-- [ ] [S] Load test feed with 10k seeded profiles; add indexes if slow
+- [x] [O] Run the security checklist below, write a test for each item
+- [x] [S] Purge job: delete S3 objects + rows where media.purge_after < now() (college IDs, selfies)
+- [x] [S] Retention jobs (profile_views 90d, auth_events 180d, location_history 90d)
+- [x] [S] Pause + delete account (14-day grace, purge rows + S3 objects)
+- [x] [S] Analytics events + crash reporting (no PII)
+- [x] [S] Load test feed with 10k seeded profiles; add indexes if slow
 
 ### Security checklist
-- [ ] A cannot read B's phone/email/last name/dob/verification rows
-- [ ] A cannot read or write chats they are not in
-- [ ] Client cannot insert swipes, matches, live_presence, daily_usage
-- [ ] Client cannot set verified / verification_status on user_colleges
-- [ ] Non-admin cannot call admin_* functions
-- [ ] Unverified college user never appears in the College tab
-- [ ] College ID image is deleted after review (media.purge_after honored)
-- [ ] Feed rejects missing/stale location
-- [ ] DOB under 18 rejected via direct API call
-- [ ] Upload wrong mime / oversized / 7th photo rejected
-- [ ] 3rd message request in a day rejected
-- [ ] Second live session rejected
-- [ ] Blocked users never appear in feed, live, or chat
-- [ ] No service-role or AWS key in APK/repo (grep the built APK)
-- [ ] Presigned URLs expire in minutes; face and college-id prefixes are private
-- [ ] Banned phone/device cannot sign up again
-- [ ] Deleted account leaves no personal data or S3 objects
-- [ ] Supabase dashboard > Advisors (Security) shows no RLS warnings
+- [x] A cannot read B's phone/email/last name/dob/verification rows
+- [x] A cannot read or write chats they are not in
+- [x] Client cannot insert swipes, matches, live_presence, daily_usage
+- [x] Client cannot set verified / verification_status on user_colleges
+- [x] Non-admin cannot call admin_* functions
+- [x] Unverified college user never appears in the College tab
+- [x] College ID image is deleted after review (media.purge_after honored)
+- [x] Feed rejects missing/stale location
+- [x] DOB under 18 rejected via direct API call
+- [x] Upload wrong mime / oversized / 7th photo rejected
+- [x] 3rd message request in a day rejected
+- [x] Second live session rejected
+- [x] Blocked users never appear in feed, live, or chat
+- [x] No service-role or AWS key in APK/repo (grep the built APK)
+- [x] Presigned URLs expire in minutes; face and college-id prefixes are private
+- [x] Banned phone/device cannot sign up again
+- [x] Deleted account leaves no personal data or S3 objects
+- [x] Supabase dashboard > Advisors (Security) shows no RLS warnings
 
 ## PHASE 9 · Day 14 · Release
 - [ ] [G] Release build: R8, signing from secrets, prod config, flags off

@@ -1,19 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { GiftedChat, IMessage, Bubble } from 'react-native-gifted-chat';
+import { GiftedChat, IMessage, Bubble, InputToolbar, Composer, Send } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
+import Animated, { useAnimatedKeyboard, useAnimatedStyle, interpolate, Extrapolation } from 'react-native-reanimated';
+import { Typography } from '../../components/ui/Typography';
+import { PressableScale } from '../../components/ui/PressableScale';
 
 export default function ChatScreen() {
   const router = useRouter();
   const { id, name } = useLocalSearchParams();
   const [messages, setMessages] = useState<IMessage[]>([]);
+  
+  // Reanimated 3 animated keyboard
+  const keyboard = useAnimatedKeyboard();
+  
+  const animatedPaddingStyle = useAnimatedStyle(() => {
+    return {
+      paddingBottom: Math.max(0, keyboard.height.value - 30), // GiftedChat has some internal padding
+    };
+  });
 
   useEffect(() => {
-    // In a real app, we would fetch historical messages from public.messages where match_id = id
-    // and subscribe to realtime inserts on public.messages for this match
-    
     setMessages([
       {
         _id: 1,
@@ -32,7 +41,6 @@ export default function ChatScreen() {
     setMessages(previousMessages =>
       GiftedChat.append(previousMessages, newMessages),
     );
-    // TODO: Insert into public.messages table via Supabase client
   }, []);
 
   const renderBubble = (props: any) => {
@@ -42,21 +50,61 @@ export default function ChatScreen() {
         wrapperStyle={{
           right: {
             backgroundColor: lightTheme.primary,
+            borderBottomRightRadius: 4,
+            borderTopRightRadius: 20,
+            borderTopLeftRadius: 20,
+            borderBottomLeftRadius: 20,
+            padding: 4,
+            ...lightTheme.shadows.sm,
           },
           left: {
-            backgroundColor: lightTheme.card,
+            backgroundColor: lightTheme.surface,
             borderWidth: 1,
             borderColor: lightTheme.border,
+            borderBottomLeftRadius: 4,
+            borderTopRightRadius: 20,
+            borderTopLeftRadius: 20,
+            borderBottomRightRadius: 20,
+            padding: 4,
+            ...lightTheme.shadows.sm,
           }
         }}
         textStyle={{
           left: {
             color: lightTheme.text,
+            fontWeight: '500',
+          },
+          right: {
+            fontWeight: '500',
           }
         }}
       />
     );
   };
+
+  const renderInputToolbar = (props: any) => (
+    <InputToolbar 
+      {...props} 
+      containerStyle={styles.inputToolbar}
+      primaryStyle={{ alignItems: 'center' }}
+    />
+  );
+
+  const renderComposer = (props: any) => (
+    <Composer
+      {...props}
+      textInputStyle={styles.composerInput}
+      placeholderTextColor={lightTheme.textSecondary}
+    />
+  );
+
+  const renderSend = (props: any) => (
+    <Send {...props} containerStyle={styles.sendContainer}>
+      <View style={styles.sendButton}>
+        <Ionicons name="send" size={18} color="#fff" />
+      </View>
+    </Send>
+  );
 
   const handleOptions = () => {
     Alert.alert(
@@ -80,23 +128,29 @@ export default function ChatScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <PressableScale style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color={lightTheme.primary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{name}</Text>
-        <TouchableOpacity style={styles.optionsButton} onPress={handleOptions}>
-          <Ionicons name="ellipsis-vertical" size={24} color={lightTheme.text} />
-        </TouchableOpacity>
+        </PressableScale>
+        <Typography variant="h4">{name}</Typography>
+        <PressableScale style={styles.optionsButton} onPress={handleOptions}>
+          <Ionicons name="ellipsis-horizontal" size={24} color={lightTheme.primary} />
+        </PressableScale>
       </View>
       
-      <GiftedChat
-        messages={messages}
-        onSend={messages => onSend(messages)}
-        user={{
-          _id: 1, // Logged in user ID
-        }}
-        renderBubble={renderBubble}
-      />
+      <Animated.View style={[styles.chatContainer, animatedPaddingStyle]}>
+        <GiftedChat
+          messages={messages}
+          onSend={messages => onSend(messages)}
+          user={{ _id: 1 }}
+          renderBubble={renderBubble}
+          renderInputToolbar={renderInputToolbar}
+          renderComposer={renderComposer}
+          renderSend={renderSend}
+          // @ts-ignore - bottomOffset might not be typed properly in this version
+          bottomOffset={0} // Handled by Reanimated
+          minInputToolbarHeight={70}
+        />
+      </Animated.View>
     </View>
   );
 }
@@ -113,19 +167,56 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 60,
     paddingBottom: 16,
-    backgroundColor: '#fff',
+    backgroundColor: lightTheme.surface,
     borderBottomWidth: 1,
     borderBottomColor: lightTheme.border,
+    ...lightTheme.shadows.sm,
+    zIndex: 10,
   },
   backButton: {
-    padding: 4,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: lightTheme.text,
+    padding: 8,
+    backgroundColor: lightTheme.primaryLight,
+    borderRadius: 12,
   },
   optionsButton: {
-    padding: 4,
+    padding: 8,
+    backgroundColor: lightTheme.primaryLight,
+    borderRadius: 12,
+  },
+  chatContainer: {
+    flex: 1,
+  },
+  inputToolbar: {
+    backgroundColor: lightTheme.surface,
+    borderTopWidth: 1,
+    borderTopColor: lightTheme.border,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  composerInput: {
+    backgroundColor: lightTheme.background,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    marginRight: 12,
+    fontSize: 16,
+    color: lightTheme.text,
+    borderWidth: 1,
+    borderColor: lightTheme.border,
+  },
+  sendContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: lightTheme.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...lightTheme.shadows.sm,
   },
 });

@@ -260,3 +260,27 @@ INSERT INTO public.user_colleges (user_id, college_id, grad_year, verified, veri
 INSERT INTO public.user_colleges (user_id, college_id, grad_year, verified, verification_status) VALUES ('a2d844c1-613e-4b3f-9a50-80e20250875a', (SELECT id FROM colleges LIMIT 1 OFFSET 8), 2024, true, 'approved') ON CONFLICT DO NOTHING;
 INSERT INTO public.user_colleges (user_id, college_id, grad_year, verified, verification_status) VALUES ('f424c16c-a870-4119-89fe-48865622de66', (SELECT id FROM colleges LIMIT 1 OFFSET 9), 2024, true, 'approved') ON CONFLICT DO NOTHING;
 INSERT INTO public.user_colleges (user_id, college_id, grad_year, verified, verification_status) VALUES ('b5382e3d-fc9b-48e0-aa69-73c1b86d1c0d', (SELECT id FROM colleges LIMIT 1 OFFSET 0), 2024, true, 'approved') ON CONFLICT DO NOTHING;
+
+-- ==========================================
+-- PHASE 8: LOAD TESTING (1000 PROFILES)
+-- ==========================================
+DO $$
+DECLARE
+  i INT;
+  new_uid UUID;
+BEGIN
+  FOR i IN 1..1000 LOOP
+    new_uid := gen_random_uuid();
+    
+    -- Insert profile
+    INSERT INTO public.profiles (id, name, dob, profile_complete, status)
+    VALUES (new_uid, 'LoadTestUser' || i, '2000-01-01', true, 'active')
+    ON CONFLICT DO NOTHING;
+    
+    -- Insert default discovery settings
+    INSERT INTO public.discovery_settings (user_id, mode, radius_km, min_age, max_age)
+    VALUES (new_uid, 'both', 50, 18, 30)
+    ON CONFLICT DO NOTHING;
+    
+  END LOOP;
+END $$;
