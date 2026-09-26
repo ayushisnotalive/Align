@@ -15,6 +15,8 @@ export default function DiscoverySettings() {
   const [radius, setRadius] = useState(50);
   const [minAge, setMinAge] = useState(18);
   const [maxAge, setMaxAge] = useState(30);
+  const [isPremium, setIsPremium] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<any>({});
 
   useEffect(() => {
     fetchSettings();
@@ -23,16 +25,19 @@ export default function DiscoverySettings() {
   const fetchSettings = async () => {
     if (!session?.user?.id) return;
     try {
-      const { data, error } = await supabase
-        .from('discovery_settings')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .single();
+      const [settingsRes, creditsRes] = await Promise.all([
+        supabase.from('discovery_settings').select('*').eq('user_id', session.user.id).single(),
+        supabase.from('user_credits').select('is_premium').eq('user_id', session.user.id).single()
+      ]);
         
-      if (data) {
-        setRadius(data.radius_km);
-        setMinAge(data.min_age);
-        setMaxAge(data.max_age);
+      if (settingsRes.data) {
+        setRadius(settingsRes.data.radius_km);
+        setMinAge(settingsRes.data.min_age);
+        setMaxAge(settingsRes.data.max_age);
+        setAdvancedFilters(settingsRes.data.advanced_filters || {});
+      }
+      if (creditsRes.data) {
+        setIsPremium(creditsRes.data.is_premium);
       }
     } catch (err) {
       console.error(err);
@@ -51,6 +56,7 @@ export default function DiscoverySettings() {
           radius_km: radius,
           min_age: minAge,
           max_age: maxAge,
+          advanced_filters: advancedFilters,
         })
         .eq('user_id', session.user.id);
         
@@ -114,6 +120,29 @@ export default function DiscoverySettings() {
           </View>
         </View>
 
+        <View style={styles.settingCard}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <Text style={[styles.label, { marginBottom: 0 }]}>Advanced Filters</Text>
+            {!isPremium && <Ionicons name="lock-closed" size={20} color="#f1c40f" />}
+          </View>
+          
+          <TouchableOpacity 
+            style={styles.advancedToggle} 
+            onPress={() => {
+              if (!isPremium) {
+                Alert.alert('Premium Feature', 'Upgrade to Align Premium to filter by height, education, and lifestyle.');
+                return;
+              }
+              setAdvancedFilters((prev: any) => ({ ...prev, strictHeight: !prev?.strictHeight }));
+            }}
+          >
+            <Text style={styles.advancedToggleText}>Strict Height Filtering (6'+)</Text>
+            <View style={[styles.toggleBox, advancedFilters?.strictHeight && styles.toggleBoxActive]}>
+              {advancedFilters?.strictHeight && <Ionicons name="checkmark" size={16} color="#fff" />}
+            </View>
+          </TouchableOpacity>
+        </View>
+
         <TouchableOpacity style={styles.button} onPress={handleSave} disabled={loading}>
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save Changes</Text>}
         </TouchableOpacity>
@@ -169,4 +198,24 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  advancedToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  advancedToggleText: { fontSize: 16, color: lightTheme.textSecondary },
+  toggleBox: {
+    width: 24, height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: lightTheme.border,
+    justifyContent: 'center', alignItems: 'center'
+  },
+  toggleBoxActive: {
+    backgroundColor: lightTheme.primary,
+    borderColor: lightTheme.primary,
+  }
 });

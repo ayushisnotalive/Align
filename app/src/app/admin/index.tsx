@@ -1,12 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
-
-const MOCK_REPORTS = [
-  { id: '1', targetName: 'Rohan', reporterName: 'Ayesha', reason: 'Inappropriate behavior in chat' },
-];
+import { supabase } from '../../lib/supabase';
 
 const MOCK_VERIFICATIONS = [
   { id: '10', userName: 'Kabir', college: 'IIT Delhi', idImageUrl: 'https://images.unsplash.com/photo-1588666367352-255d6174a7eb?w=800' },
@@ -15,9 +12,35 @@ const MOCK_VERIFICATIONS = [
 export default function AdminDashboard() {
   const router = useRouter();
   const [tab, setTab] = useState<'reports' | 'verifications'>('reports');
+  const [reports, setReports] = useState<any[]>([]);
 
-  const handleBan = (userId: string) => {
-    Alert.alert('User Banned', 'User has been banned and all active sessions will be terminated.');
+  useEffect(() => {
+    fetchReports();
+  }, []);
+
+  const fetchReports = async () => {
+    const { data, error } = await supabase
+      .from('reports')
+      .select('*, target:profiles!target_id(id, first_name), reporter:profiles!reporter_id(id, first_name)')
+      .order('created_at', { ascending: false });
+    
+    if (data) setReports(data);
+  };
+
+  const handleBan = async (targetId: string) => {
+    Alert.alert('Ban User', 'Are you sure you want to ban this user?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Ban', style: 'destructive', onPress: async () => {
+        await supabase.from('profiles').update({ status: 'banned' }).eq('id', targetId);
+        Alert.alert('User Banned', 'User has been banned and all active sessions will be terminated.');
+        fetchReports();
+      }}
+    ]);
+  };
+
+  const handleDismissReport = async (reportId: string) => {
+    await supabase.from('reports').delete().eq('id', reportId);
+    fetchReports();
   };
 
   const handleApproveCollege = (userId: string) => {
@@ -65,16 +88,16 @@ export default function AdminDashboard() {
       <ScrollView style={styles.scroll}>
         {tab === 'reports' ? (
           <View style={styles.listContainer}>
-            {MOCK_REPORTS.map(report => (
+            {reports.map(report => (
               <View key={report.id} style={styles.card}>
-                <Text style={styles.cardTitle}>Reported: {report.targetName}</Text>
-                <Text style={styles.cardSub}>By: {report.reporterName}</Text>
+                <Text style={styles.cardTitle}>Reported: {report.target?.first_name || 'Unknown'}</Text>
+                <Text style={styles.cardSub}>By: {report.reporter?.first_name || 'Unknown'}</Text>
                 <Text style={styles.reason}>"{report.reason}"</Text>
                 <View style={styles.actions}>
-                  <TouchableOpacity style={styles.actionBtnReject} onPress={() => {}}>
+                  <TouchableOpacity style={styles.actionBtnReject} onPress={() => handleDismissReport(report.id)}>
                     <Text style={styles.actionBtnTextReject}>Dismiss</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionBtnAccept} onPress={() => handleBan(report.id)}>
+                  <TouchableOpacity style={styles.actionBtnAccept} onPress={() => handleBan(report.target_id)}>
                     <Text style={styles.actionBtnTextAccept}>Ban User</Text>
                   </TouchableOpacity>
                 </View>

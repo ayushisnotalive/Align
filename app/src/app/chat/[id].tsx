@@ -9,6 +9,7 @@ import { Typography } from '../../components/ui/Typography';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function ChatScreen() {
   const router = useRouter();
@@ -48,6 +49,7 @@ export default function ChatScreen() {
               _id: newMessage.id,
               text: newMessage.body,
               createdAt: new Date(newMessage.created_at),
+              image: newMessage.type === 'image' ? newMessage.media_url : undefined,
               user: {
                 _id: newMessage.sender_id,
                 name: name as string,
@@ -78,6 +80,7 @@ export default function ChatScreen() {
         _id: m.id,
         text: m.body,
         createdAt: new Date(m.created_at),
+        image: m.type === 'image' ? m.media_url : undefined,
         user: {
           _id: m.sender_id,
           name: m.sender_id === session?.user.id ? 'Me' : (name as string),
@@ -100,7 +103,9 @@ export default function ChatScreen() {
       .insert({
         match_id: matchId,
         sender_id: session.user.id,
-        body: msg.text,
+        body: msg.text || '',
+        type: msg.image ? 'image' : 'text',
+        media_url: msg.image || null,
       });
 
     if (error) {
@@ -108,6 +113,40 @@ export default function ChatScreen() {
       Alert.alert('Error', 'Failed to send message.');
     }
   }, [matchId, session?.user.id]);
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0].uri) {
+      // Optimistically we will just display it and assume it's uploaded to supabase storage
+      // In a real app we'd upload to Supabase storage first and get a public URL
+      const mockPublicUrl = result.assets[0].uri; 
+      
+      const newMsg: IMessage = {
+        _id: Math.random().toString(),
+        text: '',
+        image: mockPublicUrl,
+        createdAt: new Date(),
+        user: { _id: session?.user?.id || '', name: 'Me' }
+      };
+      onSend([newMsg]);
+    }
+  };
+
+  const onLongPress = (context: any, message: any) => {
+    Alert.alert('React', 'Choose a reaction', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: '❤️ Heart', onPress: async () => {
+        await supabase.from('messages').update({ reaction: '❤️' }).eq('id', message._id);
+      }},
+      { text: '😂 Laugh', onPress: async () => {
+        await supabase.from('messages').update({ reaction: '😂' }).eq('id', message._id);
+      }}
+    ]);
+  };
 
   const renderBubble = (props: any) => {
     return (
@@ -149,11 +188,16 @@ export default function ChatScreen() {
   };
 
   const renderInputToolbar = (props: any) => (
-    <InputToolbar 
-      {...props} 
-      containerStyle={styles.inputToolbar}
-      primaryStyle={{ alignItems: 'center' }}
-    />
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: lightTheme.surface, borderTopWidth: 1, borderColor: lightTheme.border }}>
+      <PressableScale onPress={pickImage} style={{ padding: 8 }}>
+        <Ionicons name="image" size={28} color={lightTheme.primary} />
+      </PressableScale>
+      <InputToolbar 
+        {...props} 
+        containerStyle={[styles.inputToolbar, { flex: 1, borderTopWidth: 0 }]}
+        primaryStyle={{ alignItems: 'center' }}
+      />
+    </View>
   );
 
   const renderComposer = (props: any) => (
@@ -178,6 +222,15 @@ export default function ChatScreen() {
       'What would you like to do?',
       [
         { text: 'Cancel', style: 'cancel' },
+        { text: 'Report', style: 'destructive', onPress: async () => {
+          await supabase.from('reports').insert({ reporter_id: session?.user.id, target_id: otherUserId, reason: 'Inappropriate behavior' });
+          Alert.alert('Reported', 'User has been reported. Our team will review this shortly.');
+        }},
+        { text: 'Block', style: 'destructive', onPress: async () => {
+          await supabase.from('blocks').insert({ blocker_id: session?.user.id, blocked_id: otherUserId });
+          Alert.alert('Blocked', 'You have blocked this user.');
+          router.back();
+        }},
         { text: 'Unmatch', style: 'destructive', onPress: async () => {
           await supabase.from('matches').update({ status: 'unmatched', unmatched_by: session?.user.id }).eq('id', matchId);
           Alert.alert('Unmatched', 'You have unmatched this user.');
@@ -208,6 +261,8 @@ export default function ChatScreen() {
           renderInputToolbar={renderInputToolbar}
           renderComposer={renderComposer}
           renderSend={renderSend}
+          // @ts-ignore
+          onLongPress={onLongPress}
           // @ts-ignore
           bottomOffset={0} 
           minInputToolbarHeight={70}

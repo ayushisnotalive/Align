@@ -49,11 +49,15 @@ export default function Discover() {
       setProfiles(data || []);
       setCurrentIndex(0);
     } catch (err: any) {
-      console.error(err);
-      if (err.message === 'location required') {
-        router.replace('/location-gate' as any);
+      if (err.message === 'location required' || err.message?.includes('location')) {
+        Alert.alert(
+          'Location Required',
+          'Please turn on your location to discover people near you.',
+          [{ text: 'Enable Location', onPress: () => router.replace('/location-gate' as any) }]
+        );
       } else {
-        Alert.alert('Error', 'Could not load feed. Please ensure your location is fresh and profile is complete.');
+        console.error(err);
+        Alert.alert('Error loading feed', err.message || 'Unknown error');
       }
     }
   };
@@ -199,8 +203,8 @@ export default function Discover() {
               <Animated.View style={[styles.stamp, styles.nopeStamp, animatedNopeStyle]}>
                 <Text style={styles.stampTextNope}>NOPE</Text>
               </Animated.View>
-              <Animated.View style={[styles.stamp, styles.laterStamp, animatedLaterStyle]}>
-                <Text style={styles.stampTextLater}>LATER</Text>
+              <Animated.View style={[styles.stamp, styles.superStamp, animatedLaterStyle]}>
+                <Text style={styles.stampTextSuper}>SUPER</Text>
               </Animated.View>
 
               <Image source={{ uri: getImageUrl(profile) }} style={styles.image} />
@@ -255,14 +259,20 @@ export default function Discover() {
         </View>
         
         <View style={styles.actions}>
+          <PressableScale style={[styles.actionButton, styles.shadowBtn, { width: 50, height: 50 }]} onPress={() => Alert.alert('Premium feature', 'Rewind is a premium feature.')}>
+            <Ionicons name="return-up-back" size={24} color="#f5b041" />
+          </PressableScale>
           <PressableScale style={[styles.actionButton, styles.shadowBtn]} onPress={() => forceSwipe('left')}>
             <Ionicons name="close" size={36} color={lightTheme.danger} />
           </PressableScale>
-          <PressableScale style={[styles.actionButton, styles.laterButton, styles.shadowBtn]} onPress={() => forceSwipe('up')}>
-            <Ionicons name="time" size={32} color={lightTheme.info} />
+          <PressableScale style={[styles.actionButton, styles.superLikeButton, styles.shadowBtn]} onPress={() => forceSwipe('up')}>
+            <Ionicons name="star" size={32} color="#fff" />
           </PressableScale>
           <PressableScale style={[styles.actionButton, styles.likeButton, styles.shadowBtn]} onPress={() => forceSwipe('right')}>
             <Ionicons name="heart" size={36} color="#fff" />
+          </PressableScale>
+          <PressableScale style={[styles.actionButton, styles.shadowBtn, { width: 50, height: 50 }]} onPress={() => Alert.alert('Premium feature', 'Boost is a premium feature.')}>
+            <Ionicons name="flash" size={24} color="#9b59b6" />
           </PressableScale>
         </View>
       </View>
@@ -348,7 +358,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  laterButton: { width: 56, height: 56, borderRadius: 28 },
+  superLikeButton: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#3498db' },
   likeButton: { width: 72, height: 72, borderRadius: 36, backgroundColor: lightTheme.primary },
   shadowBtn: lightTheme.shadows.md,
   stamp: {
@@ -363,10 +373,10 @@ const styles = StyleSheet.create({
   },
   likeStamp: { left: 40, borderColor: lightTheme.success, transform: [{ rotate: '-15deg' }] },
   nopeStamp: { right: 40, borderColor: lightTheme.danger, transform: [{ rotate: '15deg' }] },
-  laterStamp: { bottom: 120, top: 'auto', alignSelf: 'center', borderColor: lightTheme.info },
+  superStamp: { bottom: 120, top: 'auto', alignSelf: 'center', borderColor: '#3498db' },
   stampTextLike: { color: lightTheme.success, fontSize: 34, fontWeight: '900', letterSpacing: 2 },
   stampTextNope: { color: lightTheme.danger, fontSize: 34, fontWeight: '900', letterSpacing: 2 },
-  stampTextLater: { color: lightTheme.info, fontSize: 32, fontWeight: '900', letterSpacing: 2 },
+  stampTextSuper: { color: '#3498db', fontSize: 32, fontWeight: '900', letterSpacing: 2 },
   emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
   radarRing: {
     width: 120,

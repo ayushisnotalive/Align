@@ -108,7 +108,7 @@ export default function Profile() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Verification & Safety</Text>
         <View style={styles.cardGroup}>
-          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/(onboarding)/face-verification' as any)}>
+          <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/verification' as any)}>
             <View style={styles.iconLabel}>
               <Ionicons name="checkmark-done-circle" size={24} color="#1DA1F2" />
               <Text style={[styles.settingLabel, { color: '#1DA1F2', fontWeight: '700', marginLeft: 12 }]}>Get Verified (Blue Tick)</Text>

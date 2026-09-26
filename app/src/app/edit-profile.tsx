@@ -49,7 +49,7 @@ export default function EditProfile() {
     try {
       const [profileRes, detailsRes] = await Promise.all([
         supabase.from('profiles').select('first_name, bio').eq('id', session.user.id).single(),
-        supabase.from('profile_details').select('*').eq('user_id', session.user.id).single()
+        supabase.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle()
       ]);
       if (profileRes.data) {
         setFirstName(profileRes.data.first_name || '');
@@ -62,7 +62,7 @@ export default function EditProfile() {
         await supabase.from('profile_details').insert({ user_id: session.user.id });
       }
     } catch (error) {
-      console.log('Error fetching profile', error);
+      console.error('Error fetching profile', error);
     } finally {
       setFetching(false);
     }
@@ -71,11 +71,25 @@ export default function EditProfile() {
   const handleSave = async () => {
     setLoading(true);
     if (session) {
-      await supabase.from('profiles').update({ first_name: firstName, bio: bio }).eq('id', session.user.id);
+      const { error: profileError } = await supabase.from('profiles').update({ first_name: firstName, bio: bio }).eq('id', session.user.id);
+      if (profileError) {
+        Alert.alert('Error', `Failed to update profile: ${profileError.message}`);
+        setLoading(false);
+        return;
+      }
       
-      const { error } = await supabase.from('profile_details').update(details).eq('user_id', session.user.id);
-      if (error) Alert.alert('Error', 'Failed to update profile details.');
-      else router.back();
+      const payload = { ...details };
+      delete payload.id;
+      delete payload.user_id;
+      delete payload.created_at;
+      delete payload.updated_at;
+
+      const { error } = await supabase.from('profile_details').update(payload).eq('user_id', session.user.id);
+      if (error) {
+        Alert.alert('Error', `Failed to update profile details: ${error.message}`);
+      } else {
+        router.back();
+      }
     }
     setLoading(false);
   };
