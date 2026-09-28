@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { GiftedChat, IMessage, Bubble, InputToolbar, Composer, Send } from 'react-native-gifted-chat';
+import { GiftedChat, IMessage, Bubble, InputToolbar, Composer, Send, BubbleProps } from 'react-native-gifted-chat';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
 import Animated, { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
@@ -54,9 +54,30 @@ export default function ChatScreen() {
                 _id: newMessage.sender_id,
                 name: name as string,
               },
+              // @ts-ignore
+              reaction: newMessage.reaction,
             };
             setMessages((prev) => GiftedChat.append(prev, [giftedMsg]));
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `match_id=eq.${matchId}`,
+        },
+        (payload) => {
+          const updatedMessage = payload.new;
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg._id === updatedMessage.id
+                ? { ...msg, reaction: updatedMessage.reaction }
+                : msg
+            )
+          );
         }
       )
       .subscribe();
@@ -85,6 +106,8 @@ export default function ChatScreen() {
           _id: m.sender_id,
           name: m.sender_id === session?.user.id ? 'Me' : (name as string),
         },
+        // @ts-ignore
+        reaction: m.reaction,
       }));
       setMessages(formattedMessages);
     }
@@ -121,18 +144,45 @@ export default function ChatScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0].uri) {
-      // Optimistically we will just display it and assume it's uploaded to supabase storage
-      // In a real app we'd upload to Supabase storage first and get a public URL
-      const mockPublicUrl = result.assets[0].uri; 
-      
-      const newMsg: IMessage = {
-        _id: Math.random().toString(),
-        text: '',
-        image: mockPublicUrl,
-        createdAt: new Date(),
-        user: { _id: session?.user?.id || '', name: 'Me' }
-      };
-      onSend([newMsg]);
+      const uri = result.assets[0].uri;
+      try {
+        const res = await fetch(uri);
+        const blob = await res.blob();
+        
+        const { data, error: fnError } = await supabase.functions.invoke('presigned-upload', {
+          body: { kind: 'chat_image', contentType: blob.type || 'image/jpeg', size: blob.size }
+        });
+
+        if (fnError || !data?.url) {
+          Alert.alert('Upload failed', 'Could not get upload URL');
+          return;
+        }
+
+        const uploadRes = await fetch(data.url, {
+          method: 'PUT',
+          headers: { 'Content-Type': blob.type || 'image/jpeg' },
+          body: blob,
+        });
+
+        if (!uploadRes.ok) {
+          Alert.alert('Upload failed', 'Failed to upload image');
+          return;
+        }
+
+        const publicUrl = `https://align-media.s3.amazonaws.com/${data.key}`;
+        
+        const newMsg: IMessage = {
+          _id: Math.random().toString(),
+          text: '',
+          image: publicUrl,
+          createdAt: new Date(),
+          user: { _id: session?.user?.id || '', name: 'Me' }
+        };
+        onSend([newMsg]);
+      } catch (err) {
+        console.error(err);
+        Alert.alert('Error', 'Failed to share media.');
+      }
     }
   };
 
@@ -148,42 +198,54 @@ export default function ChatScreen() {
     ]);
   };
 
-  const renderBubble = (props: any) => {
+  const renderBubble = (props: BubbleProps<IMessage>) => {
+    // @ts-ignore
+    const reaction = props.currentMessage?.reaction;
     return (
-      <Bubble
-        {...props}
-        wrapperStyle={{
-          right: {
-            backgroundColor: lightTheme.primary,
-            borderBottomRightRadius: 4,
-            borderTopRightRadius: 20,
-            borderTopLeftRadius: 20,
-            borderBottomLeftRadius: 20,
-            padding: 4,
-            ...lightTheme.shadows.sm,
-          },
-          left: {
-            backgroundColor: lightTheme.surface,
-            borderWidth: 1,
-            borderColor: lightTheme.border,
-            borderBottomLeftRadius: 4,
-            borderTopRightRadius: 20,
-            borderTopLeftRadius: 20,
-            borderBottomRightRadius: 20,
-            padding: 4,
-            ...lightTheme.shadows.sm,
-          }
-        }}
-        textStyle={{
-          left: {
-            color: lightTheme.text,
-            fontWeight: '500',
-          },
-          right: {
-            fontWeight: '500',
-          }
-        }}
-      />
+      <View style={{ marginBottom: reaction ? 16 : 0 }}>
+        <Bubble
+          {...props}
+          wrapperStyle={{
+            right: {
+              backgroundColor: lightTheme.primary,
+              borderBottomRightRadius: 4,
+              borderTopRightRadius: 20,
+              borderTopLeftRadius: 20,
+              borderBottomLeftRadius: 20,
+              padding: 4,
+              ...lightTheme.shadows.sm,
+            },
+            left: {
+              backgroundColor: lightTheme.surface,
+              borderWidth: 1,
+              borderColor: lightTheme.border,
+              borderBottomLeftRadius: 4,
+              borderTopRightRadius: 20,
+              borderTopLeftRadius: 20,
+              borderBottomRightRadius: 20,
+              padding: 4,
+              ...lightTheme.shadows.sm,
+            }
+          }}
+          textStyle={{
+            left: {
+              color: lightTheme.text,
+              fontWeight: '500',
+            },
+            right: {
+              fontWeight: '500',
+            }
+          }}
+        />
+        {reaction && (
+          <View style={[
+            styles.reactionContainer,
+            props.position === 'left' ? { left: 40 } : { right: 40 }
+          ]}>
+            <Text style={{ fontSize: 14 }}>{reaction}</Text>
+          </View>
+        )}
+      </View>
     );
   };
 
@@ -336,4 +398,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...lightTheme.shadows.sm,
   },
+  reactionContainer: {
+    position: 'absolute',
+    bottom: -12,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#eee',
+    ...lightTheme.shadows.sm,
+  }
 });

@@ -17,6 +17,7 @@ export default function DiscoverySettings() {
   const [maxAge, setMaxAge] = useState(30);
   const [isPremium, setIsPremium] = useState(false);
   const [advancedFilters, setAdvancedFilters] = useState<any>({});
+  const [incognitoMode, setIncognitoMode] = useState(false);
 
   useEffect(() => {
     fetchSettings();
@@ -35,6 +36,7 @@ export default function DiscoverySettings() {
         setMinAge(settingsRes.data.min_age);
         setMaxAge(settingsRes.data.max_age);
         setAdvancedFilters(settingsRes.data.advanced_filters || {});
+        setIncognitoMode(settingsRes.data.incognito_mode);
       }
       if (creditsRes.data) {
         setIsPremium(creditsRes.data.is_premium);
@@ -57,6 +59,7 @@ export default function DiscoverySettings() {
           min_age: minAge,
           max_age: maxAge,
           advanced_filters: advancedFilters,
+          incognito_mode: incognitoMode,
         })
         .eq('user_id', session.user.id);
         
@@ -139,6 +142,25 @@ export default function DiscoverySettings() {
             <Text style={styles.advancedToggleText}>Strict Height Filtering (6'+)</Text>
             <View style={[styles.toggleBox, advancedFilters?.strictHeight && styles.toggleBoxActive]}>
               {advancedFilters?.strictHeight && <Ionicons name="checkmark" size={16} color="#fff" />}
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.advancedToggle, { borderBottomWidth: 0 }]} 
+            onPress={() => {
+              if (!isPremium) {
+                Alert.alert('Premium Feature', 'Upgrade to Align Premium to browse in Incognito Mode.');
+                return;
+              }
+              setIncognitoMode(prev => !prev);
+            }}
+          >
+            <View>
+              <Text style={[styles.advancedToggleText, { fontWeight: '600' }]}>Incognito Mode</Text>
+              <Text style={{ fontSize: 12, color: lightTheme.textSecondary, marginTop: 2 }}>Only be seen by people you swipe right on</Text>
+            </View>
+            <View style={[styles.toggleBox, incognitoMode && styles.toggleBoxActive]}>
+              {incognitoMode && <Ionicons name="checkmark" size={16} color="#fff" />}
             </View>
           </TouchableOpacity>
         </View>

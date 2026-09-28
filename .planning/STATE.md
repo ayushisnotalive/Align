@@ -1,11 +1,11 @@
 ---
 status: active
-current_phase: 13
+current_phase: 14
 progress: 100
 ---
 # Status
 
-All 13 phases are complete across 4 milestones. The React Native (Expo) rewrite of Align is feature-complete with:
+All 14 phases are complete across 4 milestones. The React Native (Expo) rewrite of Align is feature-complete with:
 - Auth, onboarding, and location gate (Phases 2-3)
 - Discover feed with swipe gestures, college network feed (Phase 4)
 - Matches and realtime chat (Phase 5)
@@ -16,6 +16,7 @@ All 13 phases are complete across 4 milestones. The React Native (Expo) rewrite 
 - Security hardening, data retention, purge jobs (Phase 11)
 - EAS build config, deploy script, app store metadata (Phase 12)
 - Polish: wired college swipe buttons, extracted shared utilities, fixed app identity (Phase 13)
+- Messaging & Incognito: chat reactions, media sharing uploads, and premium incognito mode (Phase 14)
 
 ### Blockers/Concerns
 
