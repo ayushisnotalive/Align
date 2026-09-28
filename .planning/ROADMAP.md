@@ -19,7 +19,7 @@
 
 ## Milestone 4: Production
 - [x] Phase 12: Release (`play_console`, `prod_db`)
-- [ ] Phase 13: Polish & Bug Fixes (`audit_fixes`, `code_quality`)
+- [x] Phase 13: Polish & Bug Fixes (`audit_fixes`, `code_quality`)
 
 ### Phase 6: Explore (Live space) (`live`, `map`)
 Implement an interactive map view showing other active users in real time. Features include location clustering, fetching active users within bounds, and map-based interactions.
