@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, Dimensions, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
+import { useAuthStore } from '../../store/useAuthStore';
+import { getImageUrl } from '../../utils/media';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function CollegeFeed() {
+  const { session } = useAuthStore();
   const [scope, setScope] = useState<'college' | 'city' | 'state'>('college');
   const [profiles, setProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,11 +46,28 @@ export default function CollegeFeed() {
     }
   };
 
-  const getImageUrl = (profile: any) => {
-    if (profile.photos && profile.photos.length > 0) {
-      return `https://align-media.s3.amazonaws.com/${profile.photos[0].s3_key}`;
+  const handleSwipe = async (profileId: string, firstName: string, direction: 'like' | 'pass') => {
+    try {
+      const { data: isMutual, error } = await supabase.rpc('swipe', {
+        p_target_id: profileId,
+        p_direction: direction,
+        p_source: 'college'
+      });
+
+      if (error) {
+        Alert.alert('Error', error.message);
+        return;
+      }
+
+      // Remove swiped profile from list
+      setProfiles(prev => prev.filter(p => p.id !== profileId));
+
+      if (isMutual) {
+        Alert.alert("It's a Match! 🎉", `You and ${firstName} liked each other!`);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', 'Could not process swipe.');
     }
-    return 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=800';
   };
 
   if (errorMsg) {
@@ -114,10 +134,10 @@ export default function CollegeFeed() {
                 <Text style={styles.degree}>{profile.college?.course || ''} • {profile.college?.study_year || ''}</Text>
                 
                 <View style={styles.actions}>
-                  <TouchableOpacity style={styles.actionBtn}>
+                  <TouchableOpacity style={styles.actionBtn} onPress={() => handleSwipe(profile.id, profile.first_name, 'pass')}>
                     <Ionicons name="close" size={24} color="#ff4b4b" />
                   </TouchableOpacity>
-                  <TouchableOpacity style={[styles.actionBtn, styles.likeBtn]}>
+                  <TouchableOpacity style={[styles.actionBtn, styles.likeBtn]} onPress={() => handleSwipe(profile.id, profile.first_name, 'like')}>
                     <Ionicons name="heart" size={24} color="#fff" />
                   </TouchableOpacity>
                 </View>

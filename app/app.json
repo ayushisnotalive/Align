@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "app",
-    "slug": "app",
+    "name": "Align",
+    "slug": "align",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "app",
+    "scheme": "align",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",

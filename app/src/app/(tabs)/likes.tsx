@@ -7,6 +7,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getImageUrl } from '../../utils/media';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const COLUMN_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -44,12 +45,7 @@ export default function LikesScreen() {
     }
   };
 
-  const getImageUrl = (profile: any) => {
-    if (profile.photos && profile.photos.length > 0) {
-      return `https://align-media.s3.amazonaws.com/${profile.photos[0].s3_key}`;
-    }
-    return 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400';
-  };
+
 
   const renderItem = ({ item }: { item: any }) => {
     return (
