@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { lightTheme } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import { logger } from '../../utils/logger';
 
 export default function Step3College() {
   const router = useRouter();
@@ -46,7 +47,7 @@ export default function Step3College() {
       let isFallback = false;
 
       if (fnError || !data?.url) {
-        console.warn('Failed to get presigned URL, using fallback for local dev');
+        logger.warn('Step3College', 'Failed to get presigned URL, using fallback for local dev');
         finalKey = `fallback-college/${session.user.id}/${Date.now()}.jpg`;
         isFallback = true;
       }
@@ -59,7 +60,7 @@ export default function Step3College() {
         });
 
         if (!uploadRes.ok) {
-          console.warn('Failed to upload to S3, using fallback');
+          logger.warn('Step3College', 'Failed to upload to S3, using fallback');
           isFallback = true;
         }
       }
@@ -85,8 +86,8 @@ export default function Step3College() {
       });
 
       router.push('/(onboarding)/step4-places' as any);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      logger.warn('Step3College', 'Could not submit college verification:', err?.message || err);
       Alert.alert('Error', 'Could not submit college verification.');
     } finally {
       setLoading(false);

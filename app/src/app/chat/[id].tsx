@@ -10,12 +10,31 @@ import { PressableScale } from '../../components/ui/PressableScale';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import * as ImagePicker from 'expo-image-picker';
+import { logger } from '../../utils/logger';
 
 export default function ChatScreen() {
   const router = useRouter();
-  const { id: matchId, name } = useLocalSearchParams<{ id: string; name: string }>();
+  const { id: matchId, name, otherUserId: paramOtherUserId } = useLocalSearchParams<{ id: string; name: string; otherUserId?: string }>();
+  const [otherUserId, setOtherUserId] = useState<string | undefined>(paramOtherUserId);
   const [messages, setMessages] = useState<IMessage[]>([]);
   const { session } = useAuthStore();
+  
+  // Resolve otherUserId if not passed in params
+  useEffect(() => {
+    if (!otherUserId && matchId && session?.user?.id) {
+      supabase
+        .from('matches')
+        .select('user_a, user_b')
+        .eq('id', matchId)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) {
+            const partnerId = data.user_a === session.user.id ? data.user_b : data.user_a;
+            setOtherUserId(partnerId);
+          }
+        });
+    }
+  }, [matchId, session?.user?.id, otherUserId]);
   
   // Reanimated 3 animated keyboard
   const keyboard = useAnimatedKeyboard();
@@ -95,7 +114,7 @@ export default function ChatScreen() {
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching messages:', error);
+      logger.warn('Chat', 'Error fetching messages:', error.message);
     } else if (data) {
       const formattedMessages: IMessage[] = data.map(m => ({
         _id: m.id,
@@ -132,7 +151,7 @@ export default function ChatScreen() {
       });
 
     if (error) {
-      console.error('Error sending message:', error);
+      logger.warn('Chat', 'Error sending message:', error.message);
       Alert.alert('Error', 'Failed to send message.');
     }
   }, [matchId, session?.user.id]);
@@ -179,8 +198,8 @@ export default function ChatScreen() {
           user: { _id: session?.user?.id || '', name: 'Me' }
         };
         onSend([newMsg]);
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        logger.warn('Chat', 'Failed to share media:', err?.message || err);
         Alert.alert('Error', 'Failed to share media.');
       }
     }
@@ -285,16 +304,25 @@ export default function ChatScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Report', style: 'destructive', onPress: async () => {
-          await supabase.from('reports').insert({ reporter_id: session?.user.id, target_id: otherUserId, reason: 'Inappropriate behavior' });
+          if (!session?.user?.id || !otherUserId) {
+            Alert.alert('Notice', 'Unable to report at this time.');
+            return;
+          }
+          await supabase.from('reports').insert({ reporter_id: session.user.id, target_id: otherUserId, reason: 'Inappropriate behavior' });
           Alert.alert('Reported', 'User has been reported. Our team will review this shortly.');
         }},
         { text: 'Block', style: 'destructive', onPress: async () => {
-          await supabase.from('blocks').insert({ blocker_id: session?.user.id, blocked_id: otherUserId });
+          if (!session?.user?.id || !otherUserId) {
+            Alert.alert('Notice', 'Unable to block at this time.');
+            return;
+          }
+          await supabase.from('blocks').insert({ blocker_id: session.user.id, blocked_id: otherUserId });
           Alert.alert('Blocked', 'You have blocked this user.');
           router.back();
         }},
         { text: 'Unmatch', style: 'destructive', onPress: async () => {
-          await supabase.from('matches').update({ status: 'unmatched', unmatched_by: session?.user.id }).eq('id', matchId);
+          if (!session?.user?.id) return;
+          await supabase.from('matches').update({ status: 'unmatched', unmatched_by: session.user.id }).eq('id', matchId);
           Alert.alert('Unmatched', 'You have unmatched this user.');
           router.back();
         }},

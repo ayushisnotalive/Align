@@ -9,6 +9,8 @@
  * Sentry.init({ dsn: 'YOUR_DSN' });
  */
 
+import { logger } from './logger';
+
 class AnalyticsService {
   /**
    * Tracks a custom event in the app.
@@ -17,7 +19,7 @@ class AnalyticsService {
    */
   trackEvent(eventName: string, properties?: Record<string, any>) {
     // Scaffold: Map to PostHog.capture() or FirebaseAnalytics.logEvent()
-    console.log(`[Analytics] Tracked Event: ${eventName}`, properties || {});
+    logger.info('Analytics', `Tracked Event: ${eventName}`, properties || {});
   }
 
   /**
@@ -27,7 +29,7 @@ class AnalyticsService {
    */
   identifyUser(userId: string) {
     // Scaffold: Map to PostHog.identify() or Sentry.setUser()
-    console.log(`[Analytics] Identified User: ${userId}`);
+    logger.info('Analytics', `Identified User: ${userId}`);
   }
 
   /**
@@ -36,7 +38,7 @@ class AnalyticsService {
    */
   resetUser() {
     // Scaffold: Map to PostHog.reset() or Sentry.setUser(null)
-    console.log(`[Analytics] Reset User`);
+    logger.info('Analytics', 'Reset User');
   }
 
   /**
@@ -46,7 +48,7 @@ class AnalyticsService {
    */
   logError(error: Error, context?: Record<string, any>) {
     // Scaffold: Map to Sentry.captureException()
-    console.error(`[Crashlytics] Error logged: ${error.message}`, context || {});
+    logger.error('Crashlytics', `Error logged: ${error.message}`, error, { context });
   }
 }
 

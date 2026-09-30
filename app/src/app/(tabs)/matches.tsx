@@ -9,6 +9,7 @@ import { FlashList } from '@shopify/flash-list';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import * as SecureStore from 'expo-secure-store';
+import { logger } from '../../utils/logger';
 
 type Match = {
   match_id: string;
@@ -60,19 +61,24 @@ export default function Matches() {
   const fetchMatches = async () => {
     try {
       const { data, error } = await supabase.rpc('get_matches');
-      if (error) throw error;
+      if (error) {
+        logger.warn('Matches', 'Failed to fetch matches:', error.message);
+        setMatches([]);
+        return;
+      }
       setMatches(data || []);
-    } catch (err) {
-      console.error('Error fetching matches:', err);
+    } catch (err: any) {
+      logger.warn('Matches', 'Error fetching matches:', err?.message || err);
+      setMatches([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleOpenChat = (matchId: string, name: string) => {
+  const handleOpenChat = (matchId: string, name: string, otherUserId?: string) => {
     router.push({
       pathname: '/chat/[id]' as any,
-      params: { id: matchId, name },
+      params: { id: matchId, name, otherUserId },
     });
   };
 
@@ -128,7 +134,7 @@ export default function Matches() {
             <PressableScale 
               key={match.match_id} 
               style={styles.matchItem} 
-              onPress={() => handleOpenChat(match.match_id, match.first_name)}
+              onPress={() => handleOpenChat(match.match_id, match.first_name, match.other_user_id)}
             >
               <View style={styles.matchImageContainer}>
                 <Image source={{ uri: getImageUrl(match.s3_key) }} style={styles.matchImage} />
@@ -153,7 +159,7 @@ export default function Matches() {
   const renderItem = useCallback(({ item }: { item: Match }) => (
     <PressableScale 
       style={styles.chatRow} 
-      onPress={() => handleOpenChat(item.match_id, item.first_name)}
+      onPress={() => handleOpenChat(item.match_id, item.first_name, item.other_user_id)}
       scaleTo={0.98}
     >
       <Image source={{ uri: getImageUrl(item.s3_key) }} style={styles.chatImage} />

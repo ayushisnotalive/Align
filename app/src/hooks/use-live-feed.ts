@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '../utils/logger';
 
 export type LiveUser = {
   user_id: string;
@@ -57,8 +58,8 @@ export function useLiveFeed(): UseLiveFeedReturn {
       
       if (rpcError) throw rpcError;
       setFeed(data || []);
-    } catch (err) {
-      console.error('Error fetching live feed:', err);
+    } catch (err: any) {
+      logger.warn('LiveFeed', 'Error fetching live feed:', err?.message || err);
       setError(err instanceof Error ? err.message : 'Failed to fetch live feed');
     } finally {
       setLoading(false);
@@ -69,11 +70,11 @@ export function useLiveFeed(): UseLiveFeedReturn {
     try {
       const { error: rpcError } = await supabase.rpc('heartbeat');
       if (rpcError) {
-        console.error('Heartbeat error:', rpcError);
+        logger.warn('LiveFeed', 'Heartbeat error:', rpcError.message);
         // Don't throw - heartbeat failures shouldn't crash the UI
       }
-    } catch (err) {
-      console.error('Heartbeat error:', err);
+    } catch (err: any) {
+      logger.warn('LiveFeed', 'Heartbeat exception:', err?.message || err);
     }
   }, []);
 
@@ -101,8 +102,8 @@ export function useLiveFeed(): UseLiveFeedReturn {
       await fetchFeed();
 
       return { error: null };
-    } catch (err) {
-      console.error('Error going live:', err);
+    } catch (err: any) {
+      logger.warn('LiveFeed', 'Error going live:', err?.message || err);
       const errorMsg = err instanceof Error ? err.message : 'Failed to go live';
       setError(errorMsg);
       return { error: errorMsg };
@@ -128,8 +129,8 @@ export function useLiveFeed(): UseLiveFeedReturn {
 
       // Refresh feed
       await fetchFeed();
-    } catch (err) {
-      console.error('Error stopping live:', err);
+    } catch (err: any) {
+      logger.warn('LiveFeed', 'Error stopping live:', err?.message || err);
       setError(err instanceof Error ? err.message : 'Failed to stop live');
     }
   }, [fetchFeed]);
@@ -212,9 +213,9 @@ export function useLiveFeed(): UseLiveFeedReturn {
       )
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
-          console.log('Realtime subscription active for live_presence');
+          logger.info('LiveFeed', 'Realtime subscription active for live_presence');
         } else if (status === 'CHANNEL_ERROR') {
-          console.warn('Realtime subscription error - falling back to polling only');
+          logger.warn('LiveFeed', 'Realtime subscription error - falling back to polling only');
         }
       });
 

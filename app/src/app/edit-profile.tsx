@@ -5,6 +5,7 @@ import { lightTheme } from '../theme/colors';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { Ionicons } from '@expo/vector-icons';
+import { logger } from '../utils/logger';
 
 // Data Options
 const OPTIONS = {
@@ -61,8 +62,8 @@ export default function EditProfile() {
         // Create initial details row if it doesn't exist
         await supabase.from('profile_details').insert({ user_id: session.user.id });
       }
-    } catch (error) {
-      console.error('Error fetching profile', error);
+    } catch (error: any) {
+      logger.warn('EditProfile', 'Error fetching profile:', error?.message || error);
     } finally {
       setFetching(false);
     }

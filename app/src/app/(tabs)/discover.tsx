@@ -18,6 +18,7 @@ import { PressableScale } from '../../components/ui/PressableScale';
 import { Typography } from '../../components/ui/Typography';
 import { useRouter } from 'expo-router';
 import { getImageUrl } from '../../utils/media';
+import { logger } from '../../utils/logger';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -57,13 +58,11 @@ export default function Discover() {
           [{ text: 'Enable Location', onPress: () => router.replace('/location-gate' as any) }]
         );
       } else {
-        console.error(err);
-        Alert.alert('Error loading feed', err.message || 'Unknown error');
+        logger.warn('Discover', 'Error loading feed:', err?.message || err);
+        Alert.alert('Error loading feed', err?.message || 'Unknown error');
       }
     }
   };
-
-
 
   const onSwipeComplete = async (direction: 'left' | 'right' | 'up') => {
     const swipedProfile = profiles[currentIndex];
@@ -81,13 +80,13 @@ export default function Discover() {
           p_source: 'discover'
         });
 
-        if (error) console.error('Swipe error:', error);
+        if (error) logger.warn('Discover', 'Swipe RPC warning:', error.message);
         
         if (isMutual) {
           Alert.alert("It's a Match!", `You and ${swipedProfile.first_name} liked each other!`);
         }
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        logger.warn('Discover', 'Unexpected swipe error:', err?.message || err);
       }
     }
   };

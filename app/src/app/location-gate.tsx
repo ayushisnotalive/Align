@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import { lightTheme } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+import { logger } from '../utils/logger';
 
 export default function LocationGateScreen() {
   const [loading, setLoading] = useState(false);
@@ -43,7 +44,7 @@ export default function LocationGateScreen() {
       });
 
       if (error) {
-        console.error('Failed to save location', error);
+        logger.warn('LocationGate', 'Failed to save location:', error.message);
       }
 
       // Save consent locally
@@ -62,8 +63,8 @@ export default function LocationGateScreen() {
         router.replace('/(onboarding)/step1-profile' as any);
       }
 
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      logger.warn('LocationGate', 'Location permission/retrieval error:', err?.message || err);
       Alert.alert('Error', 'Something went wrong fetching your location.');
     } finally {
       setLoading(false);

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getImageUrl } from '../../utils/media';
+import { logger } from '../../utils/logger';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const COLUMN_WIDTH = (SCREEN_WIDTH - 48) / 2;
@@ -17,32 +18,53 @@ export default function LikesScreen() {
   const [likes, setLikes] = useState<any[]>([]);
   const [isPremium, setIsPremium] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [session?.user?.id]);
 
   const fetchData = async () => {
-    setLoading(true);
+    if (!session?.user?.id) {
+      setLoading(false);
+      setRefreshing(false);
+      setLikes([]);
+      return;
+    }
+
     try {
-      // 1. Check premium status
-      const { data: creditData } = await supabase
+      // 1. Check premium status safely with maybeSingle to prevent PGRST116 errors
+      const { data: creditData, error: creditError } = await supabase
         .from('user_credits')
         .select('is_premium')
-        .eq('user_id', session?.user.id)
-        .single();
+        .eq('user_id', session.user.id)
+        .maybeSingle();
       
+      if (creditError) {
+        logger.warn('Likes', 'Failed to read user_credits:', creditError.message);
+      }
       setIsPremium(creditData?.is_premium || false);
 
       // 2. Fetch inbound likes
       const { data, error } = await supabase.rpc('get_who_likes_me');
-      if (error) throw error;
+      if (error) {
+        logger.warn('Likes', 'Could not load inbound likes:', error.message);
+        setLikes([]);
+        return;
+      }
       setLikes(data || []);
-    } catch (err) {
-      console.error('Error fetching likes:', err);
+    } catch (err: any) {
+      logger.warn('Likes', 'Unexpected error fetching likes:', err?.message || err);
+      setLikes([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchData();
   };
 
 
@@ -95,6 +117,8 @@ export default function LikesScreen() {
         contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.columnWrapper}
         renderItem={renderItem}
+        refreshing={refreshing}
+        onRefresh={onRefresh}
         ListEmptyComponent={() => (
           <View style={styles.emptyState}>
             <Ionicons name="heart-dislike-outline" size={64} color={lightTheme.border} />

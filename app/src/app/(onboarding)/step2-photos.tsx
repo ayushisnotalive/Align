@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { lightTheme } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import { logger } from '../../utils/logger';
 
 export default function Step2Photos() {
   const router = useRouter();
@@ -60,7 +61,7 @@ export default function Step2Photos() {
         let isFallback = false;
 
         if (fnError || !data?.url) {
-          console.warn('Failed to get presigned URL, using fallback for local dev:', fnError || data);
+          logger.warn('Step2Photos', 'Failed to get presigned URL, using fallback:', fnError || data);
           finalKey = `fallback-media/${session.user.id}/${Date.now()}.jpg`;
           isFallback = true;
         }
@@ -74,7 +75,7 @@ export default function Step2Photos() {
           });
 
           if (!uploadRes.ok) {
-            console.warn('Failed to upload to S3, using fallback');
+            logger.warn('Step2Photos', 'Failed to upload to S3, using fallback');
             isFallback = true;
           }
         }
@@ -91,7 +92,7 @@ export default function Step2Photos() {
         }).select().single();
 
         if (mediaErr) {
-          console.error('Media insert error:', mediaErr);
+          logger.warn('Step2Photos', 'Media insert error:', mediaErr.message);
           continue;
         }
 
@@ -104,8 +105,8 @@ export default function Step2Photos() {
       }
 
       router.push('/(onboarding)/step3-college' as any);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      logger.warn('Step2Photos', 'Failed to upload photos:', err?.message || err);
       Alert.alert('Upload Error', 'Failed to upload photos.');
     } finally {
       setLoading(false);

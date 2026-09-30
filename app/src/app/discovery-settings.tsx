@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../theme/colors';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
+import { logger } from '../utils/logger';
 
 export default function DiscoverySettings() {
   const router = useRouter();
@@ -41,8 +42,8 @@ export default function DiscoverySettings() {
       if (creditsRes.data) {
         setIsPremium(creditsRes.data.is_premium);
       }
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      logger.warn('DiscoverySettings', 'Failed to load discovery settings:', err?.message || err);
     } finally {
       setFetching(false);
     }
@@ -65,8 +66,8 @@ export default function DiscoverySettings() {
         
       if (error) throw error;
       router.back();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      logger.warn('DiscoverySettings', 'Could not save settings:', err?.message || err);
       Alert.alert('Error', 'Could not save settings.');
     } finally {
       setLoading(false);

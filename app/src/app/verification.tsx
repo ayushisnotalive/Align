@@ -6,6 +6,7 @@ import { lightTheme } from '../theme/colors';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { Typography } from '../components/ui/Typography';
+import { logger } from '../utils/logger';
 
 export default function VerificationScreen() {
   const router = useRouter();
@@ -36,8 +37,8 @@ export default function VerificationScreen() {
           'You are now a verified user. The coveted blue tick will appear next to your name!',
           [{ text: 'Awesome', onPress: () => router.back() }]
         );
-      } catch (err) {
-        console.error(err);
+      } catch (err: any) {
+        logger.warn('Verification', 'Failed to update verification status:', err?.message || err);
         Alert.alert('Error', 'Failed to update verification status.');
       } finally {
         setLoading(false);
