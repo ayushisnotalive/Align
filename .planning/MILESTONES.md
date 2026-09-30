@@ -15,3 +15,16 @@
 - **Polish & Incognito**: Incognito mode for anonymous browsing, college feed swipe buttons wired to RPC, and shared media utilities.
 
 ---
+
+## v5.0 Play Store Production Launch & Hardening (Shipped: 2026-09-30)
+
+**Phases completed:** 2 phases (Phase 15, Phase 16), 2 plans complete
+
+**Key accomplishments:**
+- **Error Resilience & Safe Logging**: Eradicated intrusive RedBox and Yellowbox popups by replacing raw `console.error` and `console.warn` across 13 screens/modules with centralized `logger.ts`.
+- **Likes Feed Crash Fix**: Fixed `likes.tsx` data fetching by guarding on authenticated session state and converting credit check to `.maybeSingle()`, preventing `PGRST116` errors.
+- **Chat Parameter Wiring**: Fixed `chat/[id].tsx` compile error (`TS2304: Cannot find name 'otherUserId'`) and properly passed `other_user_id` from matches list.
+- **Google Play Store Compliance**: Configured `android.versionCode: 1` in `app.json`, verified adaptive icons and permissions, and added modal presentation transitions.
+- **Workspace Ergonomics**: Created root proxy `package.json` enabling `npm start`, `npm run android`, and `npm run tsc` directly from project root.
+
+---
