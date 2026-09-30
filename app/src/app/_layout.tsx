@@ -37,6 +37,9 @@ export default function RootLayout() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
       <Stack.Screen name="requests" options={{ headerShown: false }} />
+      <Stack.Screen name="edit-profile" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
+      <Stack.Screen name="discovery-settings" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
+      <Stack.Screen name="verification" options={{ presentation: 'modal', animation: 'slide_from_bottom', headerShown: false }} />
     </Stack>
   );
 }

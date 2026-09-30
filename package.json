@@ -1,0 +1,15 @@
+{
+  "name": "align",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Align - Dating & Social App",
+  "scripts": {
+    "start": "npm --prefix app start",
+    "android": "npm --prefix app run android",
+    "ios": "npm --prefix app run ios",
+    "web": "npm --prefix app run web",
+    "lint": "npm --prefix app run lint",
+    "tsc": "npm --prefix app run tsc",
+    "check": "npm --prefix app exec -- tsc --noEmit"
+  }
+}

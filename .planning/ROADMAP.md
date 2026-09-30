@@ -25,8 +25,8 @@
 - [x] Phase 14: Messaging & Incognito (`reactions`, `media_share`, `incognito`)
 
 ## Milestone 5: Play Store Production Launch & Hardening
-- [ ] Phase 15: Error Resilience & Log Cleanliness (`logging`, `error_handling`, `likes_fix`)
-- [ ] Phase 16: Play Store Launch Readiness & UI Polish (`play_store`, `android_manifest`, `ui_polish`)
+- [x] Phase 15: Error Resilience & Log Cleanliness (`logging`, `error_handling`, `likes_fix`)
+- [x] Phase 16: Play Store Launch Readiness & UI Polish (`play_store`, `android_manifest`, `ui_polish`)
 
 ### Phase 15: Error Resilience & Log Cleanliness (`logging`, `error_handling`, `likes_fix`)
 Fix `likes.tsx` data fetching and photo mapping. Centralize logging with `logger.ts` to eliminate raw console.error/warn redboxes. Add robust fallbacks for unauthenticated/offline states across tabs and onboarding.
