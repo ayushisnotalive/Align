@@ -9,6 +9,13 @@ import { logger } from '../utils/logger';
 
 import AvatarPickerModal from '../components/AvatarPickerModal';
 import { DEFAULT_AVATAR } from '../constants/avatars';
+import {
+  COMMUNICATION_STYLES,
+  IDEAL_DATES,
+  LIFESTYLE_VIBES,
+  TAG_CATEGORIES,
+  MAX_ALLOWED_TAGS,
+} from '../constants/lifestyleTags';
 
 // Data Options
 const OPTIONS = {
@@ -24,6 +31,9 @@ const OPTIONS = {
   workout_habits: ['Never', 'Sometimes', 'Active', 'Daily'],
   dietary_lifestyle: ['Omnivore', 'Vegetarian', 'Vegan', 'Halal', 'Kosher', 'Pescatarian'],
   zodiac_sign: ['Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo', 'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'],
+  ideal_date: IDEAL_DATES.map((d) => d.label),
+  communication_style: COMMUNICATION_STYLES.map((c) => c.label),
+  lifestyle_vibe: LIFESTYLE_VIBES.map((l) => l.label),
 };
 
 export default function EditProfile() {
@@ -101,6 +111,19 @@ export default function EditProfile() {
 
   const updateDetail = (key: string, value: any) => {
     setDetails((prev: any) => ({ ...prev, [key]: value }));
+  };
+
+  const toggleInterest = (tagLabel: string) => {
+    const current = Array.isArray(details.interests) ? details.interests : [];
+    if (current.includes(tagLabel)) {
+      updateDetail('interests', current.filter((t: string) => t !== tagLabel));
+    } else {
+      if (current.length >= MAX_ALLOWED_TAGS) {
+        Alert.alert('Maximum Reached', `You can select up to ${MAX_ALLOWED_TAGS} passions.`);
+        return;
+      }
+      updateDetail('interests', [...current, tagLabel]);
+    }
   };
 
   const openSelect = (key: string, label: string, options: string[]) => {
@@ -218,6 +241,47 @@ export default function EditProfile() {
         {renderInput('MBTI Personality', 'mbti_personality')}
         {renderInput('Love Language', 'love_language')}
 
+        <Text style={styles.sectionHeader}>Dating & Connection Style</Text>
+        {renderSelect('Ideal First Date', 'ideal_date', OPTIONS.ideal_date)}
+        {renderSelect('Communication Style', 'communication_style', OPTIONS.communication_style)}
+        {renderSelect('Weekend Vibe', 'lifestyle_vibe', OPTIONS.lifestyle_vibe)}
+
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 24, marginBottom: 12 }}>
+          <Text style={[styles.sectionHeader, { marginTop: 0, marginBottom: 0 }]}>Passions & Interests</Text>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: lightTheme.primary }}>
+            {(details.interests || []).length} / {MAX_ALLOWED_TAGS} Selected
+          </Text>
+        </View>
+
+        {TAG_CATEGORIES.map((cat) => (
+          <View key={cat.id} style={{ marginBottom: 14 }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#666', marginBottom: 8 }}>{cat.name}</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {cat.tags.map((tag) => {
+                const isSelected = (details.interests || []).includes(tag.label);
+                return (
+                  <TouchableOpacity
+                    key={tag.id}
+                    style={[
+                      styles.passionChip,
+                      isSelected && styles.passionChipActive
+                    ]}
+                    onPress={() => toggleInterest(tag.label)}
+                  >
+                    <Text style={{ fontSize: 13 }}>{tag.emoji}</Text>
+                    <Text style={[styles.passionChipText, isSelected && styles.passionChipTextActive]}>
+                      {tag.label}
+                    </Text>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={14} color="#fff" style={{ marginLeft: 2 }} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        ))}
+
         <Text style={styles.sectionHeader}>Integrations</Text>
         {renderInput('Spotify Anthem ID', 'spotify_anthem_id')}
         {renderInput('Instagram Username', 'instagram_username')}
@@ -305,4 +369,27 @@ const styles = StyleSheet.create({
   avatarImg: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#eee', borderWidth: 3, borderColor: lightTheme.primary },
   avatarBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: lightTheme.primary, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
   changeAvatarText: { color: lightTheme.primary, fontWeight: '700', fontSize: 14 },
+  passionChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  passionChipActive: {
+    backgroundColor: lightTheme.primary,
+    borderColor: lightTheme.primary,
+  },
+  passionChipText: {
+    fontSize: 13,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  passionChipTextActive: {
+    color: '#fff',
+  },
 });

@@ -13,6 +13,10 @@ interface ProfileModalProps {
     college: string;
     bio: string;
     images: string[];
+    ideal_date?: string;
+    communication_style?: string;
+    lifestyle_vibe?: string;
+    interests?: string[];
   } | null;
 }
 
@@ -55,10 +59,62 @@ export default function ProfileModal({ visible, onClose, user }: ProfileModalPro
             </View>
             <Text style={styles.college}><Ionicons name="school" size={16} /> {user.college}</Text>
             
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>About Me</Text>
-              <Text style={styles.bio}>{user.bio}</Text>
-            </View>
+            {user.bio ? (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>About Me</Text>
+                <Text style={styles.bio}>{user.bio}</Text>
+              </View>
+            ) : null}
+
+            {/* Lifestyle & Dating Style */}
+            {(!!user.ideal_date || !!user.communication_style || !!user.lifestyle_vibe) && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Lifestyle & Connection</Text>
+                <View style={styles.lifestyleGrid}>
+                  {user.ideal_date ? (
+                    <View style={styles.badgeItem}>
+                      <Ionicons name="wine-outline" size={16} color={lightTheme.primary} />
+                      <View style={{ marginLeft: 8, flex: 1 }}>
+                        <Text style={styles.badgeLabel}>Ideal Date</Text>
+                        <Text style={styles.badgeValue}>{user.ideal_date}</Text>
+                      </View>
+                    </View>
+                  ) : null}
+                  {user.communication_style ? (
+                    <View style={styles.badgeItem}>
+                      <Ionicons name="chatbubbles-outline" size={16} color={lightTheme.primary} />
+                      <View style={{ marginLeft: 8, flex: 1 }}>
+                        <Text style={styles.badgeLabel}>Communication</Text>
+                        <Text style={styles.badgeValue}>{user.communication_style}</Text>
+                      </View>
+                    </View>
+                  ) : null}
+                  {user.lifestyle_vibe ? (
+                    <View style={styles.badgeItem}>
+                      <Ionicons name="sparkles-outline" size={16} color={lightTheme.primary} />
+                      <View style={{ marginLeft: 8, flex: 1 }}>
+                        <Text style={styles.badgeLabel}>Weekend Vibe</Text>
+                        <Text style={styles.badgeValue}>{user.lifestyle_vibe}</Text>
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            )}
+
+            {/* Passions */}
+            {Array.isArray(user.interests) && user.interests.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Passions ({user.interests.length}/12)</Text>
+                <View style={styles.tagWrap}>
+                  {user.interests.map((tag, idx) => (
+                    <View key={idx} style={styles.tagBadge}>
+                      <Text style={styles.tagBadgeText}>{tag}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
             
             <TouchableOpacity style={styles.blockBtn} onPress={handleOptions}>
               <Text style={styles.blockBtnText}>Block / Report {user.name}</Text>
@@ -144,5 +200,49 @@ const styles = StyleSheet.create({
     color: '#ff4b4b',
     fontWeight: 'bold',
     fontSize: 16,
+  },
+  lifestyleGrid: {
+    gap: 10,
+    marginTop: 4,
+  },
+  badgeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  badgeLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  badgeValue: {
+    fontSize: 13,
+    color: lightTheme.text,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  tagWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  tagBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+  },
+  tagBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: lightTheme.primary,
   },
 });

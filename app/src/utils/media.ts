@@ -10,11 +10,16 @@ export function getImageUrl(profile?: {
   s3_key?: string | null; 
   avatar_url?: string | null;
   image?: string | null;
+  details?: { avatar_url?: string | null };
 } | null): string {
   if (!profile) return FALLBACK_AVATAR;
 
   if (profile.avatar_url) {
     return profile.avatar_url;
+  }
+
+  if (profile.details?.avatar_url) {
+    return profile.details.avatar_url;
   }
 
   if (profile.image) {

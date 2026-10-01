@@ -19,6 +19,7 @@ import { Typography } from '../../components/ui/Typography';
 import { useRouter } from 'expo-router';
 import { getImageUrl } from '../../utils/media';
 import { logger } from '../../utils/logger';
+import ProfileModal from '../../components/ProfileModal';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -29,6 +30,7 @@ export default function Discover() {
   const router = useRouter();
   const [profiles, setProfiles] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -187,6 +189,64 @@ export default function Discover() {
     return profiles.map((profile, i) => {
       if (i < currentIndex) return null;
 
+      const renderCardContent = (p: any) => (
+        <>
+          <Image source={{ uri: getImageUrl(p) }} style={styles.image} />
+          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.88)']} style={styles.gradient}>
+            <View style={styles.cardInfo}>
+              <View style={styles.nameRow}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                  <Text style={styles.name}>{p.first_name || 'Student'}, {p.age || 21}</Text>
+                  {p.is_blue_tick && (
+                    <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" style={{ marginLeft: 6 }} />
+                  )}
+                </View>
+                <TouchableOpacity 
+                  onPress={() => setSelectedProfile({
+                    id: p.id,
+                    name: p.first_name || 'Student',
+                    age: p.age || 21,
+                    college: p.college?.college_name || p.school || 'Campus Student',
+                    bio: p.bio || '',
+                    images: [getImageUrl(p)],
+                    ideal_date: p.ideal_date,
+                    communication_style: p.communication_style,
+                    lifestyle_vibe: p.lifestyle_vibe,
+                    interests: p.interests,
+                  })}
+                  style={styles.infoBtn}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="information-circle-outline" size={28} color="#fff" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.college}>
+                <Ionicons name="school" size={16} color="#ccc" /> {p.college?.college_name || p.school || 'Campus Student'}
+              </Text>
+
+              {/* Badges for ideal date & passions */}
+              {(p.ideal_date || (Array.isArray(p.interests) && p.interests.length > 0)) && (
+                <View style={styles.cardBadgesRow}>
+                  {p.ideal_date ? (
+                    <View style={styles.cardBadge}>
+                      <Text style={styles.cardBadgeText}>🍷 {p.ideal_date}</Text>
+                    </View>
+                  ) : null}
+                  {Array.isArray(p.interests) && p.interests.slice(0, 2).map((item: string, idx: number) => (
+                    <View key={idx} style={[styles.cardBadge, styles.cardPassionBadge]}>
+                      <Text style={styles.cardBadgeText}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {p.bio ? <Text style={styles.bio} numberOfLines={2}>{p.bio}</Text> : null}
+            </View>
+          </LinearGradient>
+        </>
+      );
+
       if (i === currentIndex) {
         return (
           <GestureDetector key={profile.id} gesture={panGesture}>
@@ -201,17 +261,7 @@ export default function Discover() {
                 <Text style={styles.stampTextSuper}>SUPER</Text>
               </Animated.View>
 
-              <Image source={{ uri: getImageUrl(profile) }} style={styles.image} />
-              <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.gradient}>
-                <View style={styles.cardInfo}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name}>{profile.first_name || 'Student'}, {profile.age || 21}</Text>
-                    {profile.is_blue_tick && <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />}
-                  </View>
-                  <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college?.college_name || profile.school || 'Campus Student'}</Text>
-                  {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-                </View>
-              </LinearGradient>
+              {renderCardContent(profile)}
             </Animated.View>
           </GestureDetector>
         );
@@ -222,17 +272,7 @@ export default function Discover() {
 
       return (
         <Animated.View key={profile.id} style={[styles.cardStyle, { top: topOffset, transform: [{ scale }] }]}>
-          <Image source={{ uri: getImageUrl(profile) }} style={styles.image} />
-          <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.gradient}>
-            <View style={styles.cardInfo}>
-              <View style={styles.nameRow}>
-                <Text style={styles.name}>{profile.first_name || 'Student'}, {profile.age || 21}</Text>
-                {profile.is_blue_tick && <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />}
-              </View>
-              <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college?.college_name || profile.school || 'Campus Student'}</Text>
-              {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
-            </View>
-          </LinearGradient>
+          {renderCardContent(profile)}
         </Animated.View>
       );
     }).reverse();
@@ -269,6 +309,13 @@ export default function Discover() {
             <Ionicons name="flash" size={24} color="#9b59b6" />
           </PressableScale>
         </View>
+
+        {/* Profile Full View Modal */}
+        <ProfileModal
+          visible={!!selectedProfile}
+          onClose={() => setSelectedProfile(null)}
+          user={selectedProfile}
+        />
       </View>
     </GestureHandlerRootView>
   );
@@ -324,17 +371,45 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   cardInfo: { gap: 6 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   name: {
     color: '#fff',
-    fontSize: 34,
+    fontSize: 32,
     fontWeight: '800',
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
-  college: { color: '#E0E0E0', fontSize: 18, fontWeight: '500', marginBottom: 4 },
-  bio: { color: '#fff', fontSize: 16, lineHeight: 22, opacity: 0.9 },
+  infoBtn: {
+    padding: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
+  },
+  college: { color: '#E0E0E0', fontSize: 16, fontWeight: '600' },
+  cardBadgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginVertical: 4,
+  },
+  cardBadge: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  cardPassionBadge: {
+    backgroundColor: 'rgba(78,49,232,0.7)',
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  cardBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  bio: { color: '#fff', fontSize: 14, lineHeight: 20, opacity: 0.9, marginTop: 2 },
   actions: {
     flexDirection: 'row',
     justifyContent: 'center',

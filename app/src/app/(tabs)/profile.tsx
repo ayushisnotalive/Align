@@ -193,6 +193,86 @@ export default function Profile() {
         </View>
       </LinearGradient>
 
+      {/* Lifestyle & Passions */}
+      <View style={styles.section}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Lifestyle & Passions</Text>
+          <TouchableOpacity onPress={() => router.push('/edit-profile' as any)}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: lightTheme.primary }}>Edit</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.lifestyleCard}>
+          {!!(profile?.bio || details?.bio) && (
+            <View style={{ marginBottom: 14 }}>
+              <Text style={styles.lifestyleLabel}>ABOUT ME</Text>
+              <Text style={styles.bioText}>{profile?.bio || details?.bio}</Text>
+            </View>
+          )}
+
+          {/* Quick Lifestyle Badges */}
+          <View style={styles.lifestyleGrid}>
+            {details?.ideal_date && (
+              <View style={styles.badgeItem}>
+                <Ionicons name="wine-outline" size={16} color={lightTheme.primary} />
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={styles.badgeLabel}>Ideal Date</Text>
+                  <Text style={styles.badgeValue} numberOfLines={1}>{details.ideal_date}</Text>
+                </View>
+              </View>
+            )}
+
+            {details?.communication_style && (
+              <View style={styles.badgeItem}>
+                <Ionicons name="chatbubbles-outline" size={16} color={lightTheme.primary} />
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={styles.badgeLabel}>Communication</Text>
+                  <Text style={styles.badgeValue} numberOfLines={1}>{details.communication_style}</Text>
+                </View>
+              </View>
+            )}
+
+            {details?.lifestyle_vibe && (
+              <View style={styles.badgeItem}>
+                <Ionicons name="sparkles-outline" size={16} color={lightTheme.primary} />
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={styles.badgeLabel}>Weekend Vibe</Text>
+                  <Text style={styles.badgeValue} numberOfLines={1}>{details.lifestyle_vibe}</Text>
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Passion Tags */}
+          <View style={{ marginTop: 14 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={styles.lifestyleLabel}>PASSIONS & INTERESTS</Text>
+              <Text style={styles.tagCountText}>
+                {((details?.interests || details?.personality_tags) || []).length} / 12 Selected
+              </Text>
+            </View>
+
+            {((details?.interests || details?.personality_tags) || []).length > 0 ? (
+              <View style={styles.tagWrap}>
+                {((details?.interests || details?.personality_tags) || []).map((tag: string, index: number) => (
+                  <View key={index} style={styles.tagBadge}>
+                    <Text style={styles.tagBadgeText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <TouchableOpacity 
+                style={styles.emptyTagsWrap}
+                onPress={() => router.push('/edit-profile' as any)}
+              >
+                <Ionicons name="add-circle-outline" size={20} color={lightTheme.primary} />
+                <Text style={styles.emptyTagsText}>Select up to 12 passions to stand out</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </View>
+
       {/* Discovery Settings */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Discovery Settings</Text>
@@ -508,5 +588,96 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#f2f2f2',
     marginHorizontal: 16,
+  },
+  lifestyleCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  lifestyleLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#888',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  bioText: {
+    fontSize: 14,
+    color: lightTheme.text,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  lifestyleGrid: {
+    gap: 10,
+  },
+  badgeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  badgeLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  badgeValue: {
+    fontSize: 13,
+    color: lightTheme.text,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  tagCountText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: lightTheme.primary,
+  },
+  tagWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  tagBadge: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+  },
+  tagBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: lightTheme.primary,
+  },
+  emptyTagsWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderStyle: 'dashed',
+    marginTop: 4,
+  },
+  emptyTagsText: {
+    fontSize: 13,
+    color: lightTheme.primary,
+    fontWeight: '600',
   },
 });
