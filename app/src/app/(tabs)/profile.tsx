@@ -7,7 +7,9 @@ import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import AvatarPickerModal from '../../components/AvatarPickerModal';
+import PhotoManagerModal from '../../components/PhotoManagerModal';
 import { DEFAULT_AVATAR } from '../../constants/avatars';
+import { getPhotoUrl } from '../../utils/media';
 import { logger } from '../../utils/logger';
 
 export default function Profile() {
@@ -15,12 +17,14 @@ export default function Profile() {
   const { session } = useAuthStore();
   const [profile, setProfile] = useState<any>(null);
   const [details, setDetails] = useState<any>(null);
+  const [userPhotos, setUserPhotos] = useState<any[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [distance, setDistance] = useState(50);
   const [showMe, setShowMe] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
 
   const fetchUserData = useCallback(async () => {
     if (!session?.user?.id) {
@@ -29,12 +33,13 @@ export default function Profile() {
     }
 
     try {
-      const [pRes, dRes, privRes, adminRes, dsRes] = await Promise.all([
+      const [pRes, dRes, privRes, adminRes, dsRes, photosRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle(),
         supabase.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
         supabase.from('profile_private').select('*').eq('user_id', session.user.id).maybeSingle(),
         supabase.rpc('check_is_admin'),
-        supabase.from('discovery_settings').select('*').eq('user_id', session.user.id).maybeSingle()
+        supabase.from('discovery_settings').select('*').eq('user_id', session.user.id).maybeSingle(),
+        supabase.from('photos').select('id, position, likes_count, media:media_id(s3_key)').eq('user_id', session.user.id).order('position', { ascending: true })
       ]);
 
       if (pRes.data) setProfile(pRes.data);
@@ -44,6 +49,7 @@ export default function Profile() {
         setShowMe(dsRes.data.show_me ?? true);
         setDistance(dsRes.data.radius_km ?? 50);
       }
+      if (photosRes.data) setUserPhotos(photosRes.data);
     } catch (err: any) {
       logger.warn('Profile', 'Failed to fetch profile data:', err?.message || err);
     } finally {
@@ -186,12 +192,109 @@ export default function Profile() {
               style={styles.iconBtn}
               onPress={() => setAvatarModalVisible(true)}
             >
-              <Ionicons name="happy-outline" size={18} color="#fff" />
-              <Text style={styles.iconBtnText}>Change Icon</Text>
+              <Ionicons name="person-circle-outline" size={16} color="#fff" />
+              <Text style={styles.iconBtnText}>Icon</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={[styles.iconBtn, { backgroundColor: '#F59E0B' }]}
+              onPress={() => setPhotoModalVisible(true)}
+            >
+              <Ionicons name="images" size={16} color="#fff" />
+              <Text style={styles.iconBtnText}>Photos & Likes</Text>
             </TouchableOpacity>
           </View>
         </View>
       </LinearGradient>
+
+      {/* Photos & Pro Insights Section */}
+      <View style={styles.section}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>My Photos & Likes</Text>
+            <View style={styles.proPill}>
+              <Text style={styles.proPillText}>PRO</Text>
+            </View>
+          </View>
+          <TouchableOpacity onPress={() => setPhotoModalVisible(true)}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: lightTheme.primary }}>Manage & Reorder</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.photosOverviewCard}>
+          {userPhotos.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingVertical: 4 }}>
+              {userPhotos.map((p, idx) => {
+                const s3Key = p.media?.s3_key;
+                const photoUrl = s3Key ? getPhotoUrl(s3Key) : null;
+                const isPrimary = p.position === 1;
+
+                return (
+                  <TouchableOpacity
+                    key={p.id || idx}
+                    style={[styles.overviewPhotoWrap, isPrimary && styles.overviewPhotoPrimary]}
+                    onPress={() => setPhotoModalVisible(true)}
+                  >
+                    {photoUrl ? (
+                      <Image source={{ uri: photoUrl }} style={styles.overviewPhotoImg} />
+                    ) : (
+                      <View style={[styles.overviewPhotoImg, { backgroundColor: '#eee' }]} />
+                    )}
+                    <View style={[styles.photoSlotBadge, isPrimary && styles.primarySlotBadge]}>
+                      <Text style={styles.photoSlotText}>{isPrimary ? 'PRIMARY' : `#${p.position}`}</Text>
+                    </View>
+                    <View style={styles.photoLikeChip}>
+                      <Ionicons name="heart" size={10} color="#EF4444" />
+                      <Text style={styles.photoLikeText}>{p.likes_count || 0}</Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+
+              {userPhotos.length < 6 && (
+                <TouchableOpacity
+                  style={styles.addPhotoCardSmall}
+                  onPress={() => setPhotoModalVisible(true)}
+                >
+                  <Ionicons name="add" size={24} color={lightTheme.primary} />
+                  <Text style={styles.addPhotoTextSmall}>Add</Text>
+                </TouchableOpacity>
+              )}
+            </ScrollView>
+          ) : (
+            <TouchableOpacity 
+              style={styles.emptyPhotosBanner}
+              onPress={() => setPhotoModalVisible(true)}
+            >
+              <Ionicons name="images-outline" size={28} color={lightTheme.primary} />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={styles.emptyPhotosTitle}>Upload Profile Photos</Text>
+                <Text style={styles.emptyPhotosSub}>Add up to 6 pictures. See which gets the most likes!</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#888" />
+            </TouchableOpacity>
+          )}
+
+          {userPhotos.length >= 2 && (
+            <View style={styles.photoQuickActions}>
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={() => setPhotoModalVisible(true)}
+              >
+                <Ionicons name="swap-horizontal" size={14} color={lightTheme.primary} />
+                <Text style={styles.quickActionText}>Drag / Swap Photos</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickActionBtn}
+                onPress={() => setPhotoModalVisible(true)}
+              >
+                <Ionicons name="trophy-outline" size={14} color="#F59E0B" />
+                <Text style={styles.quickActionText}>View Most Liked</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
 
       {/* Lifestyle & Passions */}
       <View style={styles.section}>
@@ -395,6 +498,20 @@ export default function Profile() {
         onClose={() => setAvatarModalVisible(false)}
         onSelect={handleAvatarSelect}
         currentAvatarUrl={details?.avatar_url}
+        userPhotos={userPhotos.map((p) => (p.media?.s3_key ? getPhotoUrl(p.media.s3_key) : null)).filter(Boolean) as string[]}
+      />
+
+      {/* Photo Manager Modal */}
+      <PhotoManagerModal
+        visible={photoModalVisible}
+        onClose={() => {
+          setPhotoModalVisible(false);
+          fetchUserData();
+        }}
+        onProfileIconChanged={(url) => {
+          setDetails((prev: any) => ({ ...prev, avatar_url: url }));
+          fetchUserData();
+        }}
       />
     </ScrollView>
   );
@@ -679,5 +796,143 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: lightTheme.primary,
     fontWeight: '600',
+  },
+  proPill: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
+  },
+  proPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
+  },
+  photosOverviewCard: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  overviewPhotoWrap: {
+    width: 90,
+    height: 125,
+    borderRadius: 14,
+    marginRight: 10,
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F1F5F9',
+  },
+  overviewPhotoPrimary: {
+    borderColor: '#F59E0B',
+    borderWidth: 2,
+  },
+  overviewPhotoImg: {
+    width: '100%',
+    height: '100%',
+  },
+  photoSlotBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  primarySlotBadge: {
+    backgroundColor: '#F59E0B',
+  },
+  photoSlotText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  photoLikeChip: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  photoLikeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  addPhotoCardSmall: {
+    width: 80,
+    height: 125,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#CBD5E1',
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    marginRight: 10,
+  },
+  addPhotoTextSmall: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: lightTheme.primary,
+    marginTop: 2,
+  },
+  emptyPhotosBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  emptyPhotosTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: lightTheme.text,
+  },
+  emptyPhotosSub: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  photoQuickActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  quickActionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#F8FAFC',
+    paddingVertical: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  quickActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: lightTheme.text,
   },
 });

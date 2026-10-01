@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../utils/logger';
 
 import AvatarPickerModal from '../components/AvatarPickerModal';
+import PhotoManagerModal from '../components/PhotoManagerModal';
 import { DEFAULT_AVATAR } from '../constants/avatars';
 import {
   COMMUNICATION_STYLES,
@@ -53,6 +54,7 @@ export default function EditProfile() {
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
   const [avatarModalVisible, setAvatarModalVisible] = useState(false);
+  const [photoModalVisible, setPhotoModalVisible] = useState(false);
   const [currentField, setCurrentField] = useState<{key: string, label: string, options: string[]}|null>(null);
 
   useEffect(() => {
@@ -186,9 +188,16 @@ export default function EditProfile() {
               <Ionicons name="camera" size={14} color="#fff" />
             </View>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={{ marginTop: 8 }}>
-            <Text style={styles.changeAvatarText}>Change Profile Icon</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+            <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={styles.avatarActionBtn}>
+              <Ionicons name="person-circle-outline" size={16} color={lightTheme.primary} />
+              <Text style={styles.changeAvatarText}>Change Icon</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setPhotoModalVisible(true)} style={[styles.avatarActionBtn, { borderColor: '#F59E0B' }]}>
+              <Ionicons name="images-outline" size={16} color="#F59E0B" />
+              <Text style={[styles.changeAvatarText, { color: '#F59E0B' }]}>Photos & Likes</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <Text style={styles.sectionHeader}>Basics & Bio</Text>
@@ -326,6 +335,13 @@ export default function EditProfile() {
         onSelect={(url) => updateDetail('avatar_url', url)}
         currentAvatarUrl={details.avatar_url}
       />
+
+      {/* Photo Manager Modal */}
+      <PhotoManagerModal
+        visible={photoModalVisible}
+        onClose={() => setPhotoModalVisible(false)}
+        onProfileIconChanged={(url) => updateDetail('avatar_url', url)}
+      />
     </View>
   );
 }
@@ -368,7 +384,18 @@ const styles = StyleSheet.create({
   avatarWrap: { position: 'relative' },
   avatarImg: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#eee', borderWidth: 3, borderColor: lightTheme.primary },
   avatarBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: lightTheme.primary, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
-  changeAvatarText: { color: lightTheme.primary, fontWeight: '700', fontSize: 14 },
+  changeAvatarText: { color: lightTheme.primary, fontWeight: '700', fontSize: 13 },
+  avatarActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
   passionChip: {
     flexDirection: 'row',
     alignItems: 'center',

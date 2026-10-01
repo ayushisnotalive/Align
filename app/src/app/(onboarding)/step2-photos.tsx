@@ -50,8 +50,23 @@ export default function Step2Photos() {
     }
   };
 
+  const [selectedIconIndex, setSelectedIconIndex] = useState<number>(0);
+
+  const swapPhotos = (indexA: number, indexB: number) => {
+    if (indexA < 0 || indexB < 0 || indexA >= photos.length || indexB >= photos.length) return;
+    const newPhotos = [...photos];
+    const temp = newPhotos[indexA];
+    newPhotos[indexA] = newPhotos[indexB];
+    newPhotos[indexB] = temp;
+    setPhotos(newPhotos);
+    if (selectedIconIndex === indexA) setSelectedIconIndex(indexB);
+    else if (selectedIconIndex === indexB) setSelectedIconIndex(indexA);
+  };
+
   const removePhoto = (index: number) => {
     setPhotos(photos.filter((_, i) => i !== index));
+    if (selectedIconIndex === index) setSelectedIconIndex(0);
+    else if (selectedIconIndex > index) setSelectedIconIndex(selectedIconIndex - 1);
   };
 
   const handleNext = async () => {
@@ -59,6 +74,8 @@ export default function Step2Photos() {
     setLoading(true);
 
     try {
+      let chosenAvatarKey = '';
+
       // For each photo, upload to S3 and save to DB
       for (let i = 0; i < photos.length; i++) {
         const uri = photos[i];
@@ -73,6 +90,10 @@ export default function Step2Photos() {
         let finalKey = `photos/${session.user.id}/${Date.now()}_${i}.jpg`;
         const sizeBytes = blob ? blob.size : 10240;
         const mimeType = blob?.type || 'image/jpeg';
+
+        if (i === selectedIconIndex) {
+          chosenAvatarKey = finalKey;
+        }
 
         // Insert into media
         const { data: mediaData, error: mediaErr } = await supabase.from('media').insert({
@@ -98,6 +119,15 @@ export default function Step2Photos() {
         });
       }
 
+      // If user uploaded photos, set their chosen photo (default first photo) as profile icon
+      if (chosenAvatarKey) {
+        const avatarUrl = `https://align-media.s3.amazonaws.com/${chosenAvatarKey}`;
+        await supabase.from('profile_details').upsert({
+          user_id: session.user.id,
+          avatar_url: avatarUrl
+        }, { onConflict: 'user_id' });
+      }
+
       // Update onboarding step
       await supabase.from('profiles').update({ onboarding_step: 2 }).eq('id', session.user.id);
 
@@ -115,7 +145,7 @@ export default function Step2Photos() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Your Photos</Text>
       <Text style={styles.subtitle}>
-        Show off your vibe. Add your best pictures or continue with your selected campus avatar.
+        The 1st photo is your primary card. Tap any photo to set it as your profile icon.
       </Text>
 
       {/* Grid of photos */}
@@ -130,32 +160,81 @@ export default function Step2Photos() {
           </View>
         )}
 
-        {photos.map((uri, index) => (
-          <View key={index} style={styles.photoBox}>
-            <Image source={{ uri }} style={styles.photoImage} />
-            <TouchableOpacity style={styles.deleteBtn} onPress={() => removePhoto(index)}>
-              <Ionicons name="close-circle" size={24} color="#ff4b4b" />
-            </TouchableOpacity>
-            {index === 0 && (
-              <View style={styles.coverBadge}>
-                <Text style={styles.coverBadgeText}>Main</Text>
+        {photos.map((uri, index) => {
+          const isPrimary = index === 0;
+          const isSelectedIcon = selectedIconIndex === index;
+
+          return (
+            <View key={index} style={[styles.photoBox, isPrimary && styles.photoBoxActivePrimary]}>
+              <Image source={{ uri }} style={styles.photoImage} />
+              
+              <TouchableOpacity style={styles.deleteBtn} onPress={() => removePhoto(index)}>
+                <Ionicons name="close-circle" size={24} color="#ff4b4b" />
+              </TouchableOpacity>
+
+              {/* Primary Photo Badge */}
+              {isPrimary && (
+                <View style={styles.coverBadge}>
+                  <Text style={styles.coverBadgeText}>PRIMARY</Text>
+                </View>
+              )}
+
+              {/* Profile Icon Badge / Selector */}
+              <TouchableOpacity
+                style={[styles.iconSelectBadge, isSelectedIcon && styles.iconSelectBadgeActive]}
+                onPress={() => setSelectedIconIndex(index)}
+              >
+                <Ionicons name={isSelectedIcon ? 'checkmark-circle' : 'person-circle-outline'} size={12} color="#fff" />
+                <Text style={styles.iconSelectText}>{isSelectedIcon ? 'ICON' : 'USE ICON'}</Text>
+              </TouchableOpacity>
+
+              {/* Reorder Buttons */}
+              <View style={styles.reorderStrip}>
+                {index > 0 && (
+                  <TouchableOpacity
+                    style={styles.reorderBtnSmall}
+                    onPress={() => swapPhotos(index, index - 1)}
+                  >
+                    <Ionicons name="chevron-back" size={14} color="#fff" />
+                  </TouchableOpacity>
+                )}
+                {index < photos.length - 1 && (
+                  <TouchableOpacity
+                    style={styles.reorderBtnSmall}
+                    onPress={() => swapPhotos(index, index + 1)}
+                  >
+                    <Ionicons name="chevron-forward" size={14} color="#fff" />
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
-          </View>
-        ))}
+            </View>
+          );
+        })}
 
         {photos.length < 6 && (
           <TouchableOpacity style={styles.addPhotoBox} onPress={pickImage}>
             <Ionicons name="add" size={36} color={lightTheme.primary} />
             <Text style={styles.addPhotoText}>Add Photo</Text>
+            <Text style={{ fontSize: 11, color: '#94A3B8' }}>Slot #{photos.length + 1}</Text>
           </TouchableOpacity>
         )}
       </View>
 
+      {/* Quick Swap 1st and 2nd Photo Button */}
+      {photos.length >= 2 && (
+        <TouchableOpacity
+          style={styles.quickSwapBar}
+          onPress={() => swapPhotos(0, 1)}
+        >
+          <Ionicons name="swap-horizontal" size={18} color={lightTheme.primary} />
+          <Text style={styles.quickSwapBarText}>Swap 1st and 2nd Photo</Text>
+        </TouchableOpacity>
+      )}
+
       <View style={styles.tipBox}>
         <Ionicons name="bulb-outline" size={20} color={lightTheme.primary} />
         <Text style={styles.tipText}>
-          Profiles with clear smiling photos get 4x more mutual likes on campus!
+          By default, your 1st photo is your primary card & profile icon. You can change this anytime!
         </Text>
       </View>
 
@@ -305,5 +384,62 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 17,
     fontWeight: 'bold',
+  },
+  photoBoxActivePrimary: {
+    borderWidth: 2,
+    borderColor: '#F59E0B',
+  },
+  iconSelectBadge: {
+    position: 'absolute',
+    bottom: 22,
+    left: 4,
+    right: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  iconSelectBadgeActive: {
+    backgroundColor: lightTheme.primary,
+  },
+  iconSelectText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  reorderStrip: {
+    position: 'absolute',
+    bottom: 2,
+    left: 4,
+    right: 4,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  reorderBtnSmall: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+  },
+  quickSwapBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#EEF2FF',
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    marginBottom: 16,
+  },
+  quickSwapBarText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: lightTheme.primary,
   },
 });

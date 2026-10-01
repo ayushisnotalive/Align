@@ -17,7 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { PressableScale } from '../../components/ui/PressableScale';
 import { Typography } from '../../components/ui/Typography';
 import { useRouter } from 'expo-router';
-import { getImageUrl } from '../../utils/media';
+import { getImageUrl, getPhotoUrl } from '../../utils/media';
 import { logger } from '../../utils/logger';
 import ProfileModal from '../../components/ProfileModal';
 
@@ -31,6 +31,7 @@ export default function Discover() {
   const [profiles, setProfiles] = useState<any[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
+  const [photoIndexMap, setPhotoIndexMap] = useState<{ [id: string]: number }>({});
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -50,7 +51,16 @@ export default function Discover() {
       });
 
       if (error) throw error;
-      setProfiles(data || []);
+      const feedData = data || [];
+
+      // Smart Photos: Always show random photos by default across candidate cards
+      const initialMap: { [id: string]: number } = {};
+      feedData.forEach((p: any) => {
+        const count = Array.isArray(p.photos) ? p.photos.length : 0;
+        initialMap[p.id] = count > 1 ? Math.floor(Math.random() * count) : 0;
+      });
+      setPhotoIndexMap(initialMap);
+      setProfiles(feedData);
       setCurrentIndex(0);
     } catch (err: any) {
       if (err.message === 'location required' || err.message?.includes('location')) {
@@ -66,6 +76,22 @@ export default function Discover() {
     }
   };
 
+  const handleNextPhoto = (profileId: string, maxPhotos: number) => {
+    if (maxPhotos <= 1) return;
+    setPhotoIndexMap((prev) => ({
+      ...prev,
+      [profileId]: ((prev[profileId] ?? 0) + 1) % maxPhotos,
+    }));
+  };
+
+  const handlePrevPhoto = (profileId: string, maxPhotos: number) => {
+    if (maxPhotos <= 1) return;
+    setPhotoIndexMap((prev) => ({
+      ...prev,
+      [profileId]: (prev[profileId] ?? 0) <= 0 ? maxPhotos - 1 : (prev[profileId] ?? 0) - 1,
+    }));
+  };
+
   const onSwipeComplete = async (direction: 'left' | 'right' | 'up') => {
     const swipedProfile = profiles[currentIndex];
     setCurrentIndex((prev) => prev + 1);
@@ -76,10 +102,17 @@ export default function Discover() {
       try {
         const isLike = direction === 'right' || direction === 'up';
         const pDirection = direction === 'up' ? 'super' : (direction === 'right' ? 'like' : 'pass');
+
+        // Look up photo that was active on the card when swiped
+        const activeIdx = photoIndexMap[swipedProfile.id] ?? 0;
+        const activePhoto = Array.isArray(swipedProfile.photos) && swipedProfile.photos[activeIdx];
+        const activePhotoId = activePhoto?.photo_id || null;
+
         const { data: isMutual, error } = await supabase.rpc('swipe', {
           p_target_id: swipedProfile.id,
           p_direction: pDirection,
-          p_source: 'discover'
+          p_source: 'discover',
+          p_photo_id: activePhotoId
         });
 
         if (error) logger.warn('Discover', 'Swipe RPC warning:', error.message);
@@ -189,9 +222,50 @@ export default function Discover() {
     return profiles.map((profile, i) => {
       if (i < currentIndex) return null;
 
+      const photosList = Array.isArray(profile.photos) && profile.photos.length > 0 ? profile.photos : [];
+      const currentPhotoIdx = photoIndexMap[profile.id] ?? 0;
+      const currentPhotoObj = photosList[currentPhotoIdx];
+      const displayImageUrl = currentPhotoObj?.s3_key ? getPhotoUrl(currentPhotoObj.s3_key) : getImageUrl(profile);
+
+      const allImageUrls = photosList.length > 0
+        ? photosList.map((ph: any) => getPhotoUrl(ph.s3_key))
+        : [getImageUrl(profile)];
+
       const renderCardContent = (p: any) => (
-        <>
-          <Image source={{ uri: getImageUrl(p) }} style={styles.image} />
+        <View style={{ flex: 1, width: '100%', height: '100%' }}>
+          <Image source={{ uri: displayImageUrl }} style={styles.image} />
+
+          {/* Photo Indicator Bars */}
+          {photosList.length > 1 && (
+            <View style={styles.photoIndicatorsRow}>
+              {photosList.map((_: any, pIdx: number) => (
+                <View
+                  key={pIdx}
+                  style={[
+                    styles.indicatorBar,
+                    pIdx === currentPhotoIdx && styles.indicatorBarActive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+
+          {/* Touch zones to tap left / right for photos */}
+          {photosList.length > 1 && (
+            <View style={styles.photoTouchZones}>
+              <TouchableOpacity
+                style={styles.touchZoneLeft}
+                onPress={() => handlePrevPhoto(p.id, photosList.length)}
+                activeOpacity={1}
+              />
+              <TouchableOpacity
+                style={styles.touchZoneRight}
+                onPress={() => handleNextPhoto(p.id, photosList.length)}
+                activeOpacity={1}
+              />
+            </View>
+          )}
+
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.88)']} style={styles.gradient}>
             <View style={styles.cardInfo}>
               <View style={styles.nameRow}>
@@ -208,7 +282,7 @@ export default function Discover() {
                     age: p.age || 21,
                     college: p.college?.college_name || p.school || 'Campus Student',
                     bio: p.bio || '',
-                    images: [getImageUrl(p)],
+                    images: allImageUrls,
                     ideal_date: p.ideal_date,
                     communication_style: p.communication_style,
                     lifestyle_vibe: p.lifestyle_vibe,
@@ -244,7 +318,7 @@ export default function Discover() {
               {p.bio ? <Text style={styles.bio} numberOfLines={2}>{p.bio}</Text> : null}
             </View>
           </LinearGradient>
-        </>
+        </View>
       );
 
       if (i === currentIndex) {
@@ -455,5 +529,38 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
+  },
+  photoIndicatorsRow: {
+    position: 'absolute',
+    top: 12,
+    left: 14,
+    right: 14,
+    flexDirection: 'row',
+    gap: 6,
+    zIndex: 10,
+  },
+  indicatorBar: {
+    flex: 1,
+    height: 3.5,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  indicatorBarActive: {
+    backgroundColor: '#fff',
+  },
+  photoTouchZones: {
+    position: 'absolute',
+    top: 25,
+    bottom: '40%',
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    zIndex: 5,
+  },
+  touchZoneLeft: {
+    flex: 1,
+  },
+  touchZoneRight: {
+    flex: 1,
   },
 });
