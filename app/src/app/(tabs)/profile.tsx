@@ -8,6 +8,9 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import AvatarPickerModal from '../../components/AvatarPickerModal';
 import PhotoManagerModal from '../../components/PhotoManagerModal';
+import PremiumModal from '../../components/PremiumModal';
+import WhoLikesMeModal from '../../components/WhoLikesMeModal';
+import { UserSubscription, PremiumTier } from '../../types/premium';
 import { DEFAULT_AVATAR } from '../../constants/avatars';
 import { getPhotoUrl } from '../../utils/media';
 import { logger } from '../../utils/logger';
@@ -18,6 +21,10 @@ export default function Profile() {
   const [profile, setProfile] = useState<any>(null);
   const [details, setDetails] = useState<any>(null);
   const [userPhotos, setUserPhotos] = useState<any[]>([]);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [premiumModalVisible, setPremiumModalVisible] = useState(false);
+  const [whoLikesMeModalVisible, setWhoLikesMeModalVisible] = useState(false);
+  const [targetPremiumTier, setTargetPremiumTier] = useState<PremiumTier>('gold');
   const [isAdmin, setIsAdmin] = useState(false);
   const [distance, setDistance] = useState(50);
   const [showMe, setShowMe] = useState(true);
@@ -33,18 +40,20 @@ export default function Profile() {
     }
 
     try {
-      const [pRes, dRes, privRes, adminRes, dsRes, insightsRes] = await Promise.all([
+      const [pRes, dRes, privRes, adminRes, dsRes, insightsRes, subRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle(),
         supabase.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
         supabase.from('profile_private').select('*').eq('user_id', session.user.id).maybeSingle(),
         supabase.rpc('check_is_admin'),
         supabase.from('discovery_settings').select('*').eq('user_id', session.user.id).maybeSingle(),
-        supabase.rpc('get_user_photo_insights')
+        supabase.rpc('get_user_photo_insights'),
+        supabase.rpc('get_user_subscription')
       ]);
 
       if (pRes.data) setProfile(pRes.data);
       if (dRes.data) setDetails(dRes.data);
       if (adminRes.data !== undefined) setIsAdmin(!!adminRes.data);
+      if (subRes.data) setSubscription(subRes.data);
       if (dsRes.data) {
         setShowMe(dsRes.data.show_me ?? true);
         setDistance(dsRes.data.radius_km ?? 50);
@@ -192,6 +201,56 @@ export default function Profile() {
             )}
           </View>
 
+          {/* Premium Membership Status Badge */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4, marginBottom: 2 }}>
+            {subscription?.has_subscription && subscription.tier ? (
+              <TouchableOpacity
+                style={[
+                  styles.tierHeaderBadge,
+                  subscription.tier === 'diamond'
+                    ? { backgroundColor: '#06B6D4' }
+                    : subscription.tier === 'gold'
+                    ? { backgroundColor: '#F59E0B' }
+                    : { backgroundColor: '#4E31E8' },
+                ]}
+                onPress={() => {
+                  setTargetPremiumTier(subscription.tier as PremiumTier);
+                  setPremiumModalVisible(true);
+                }}
+              >
+                <Ionicons
+                  name={
+                    subscription.tier === 'diamond'
+                      ? 'diamond'
+                      : subscription.tier === 'gold'
+                      ? 'trophy'
+                      : 'flash'
+                  }
+                  size={11}
+                  color="#fff"
+                />
+                <Text style={styles.tierHeaderBadgeText}>
+                  {subscription.tier === 'diamond'
+                    ? 'DIAMOND VIP'
+                    : subscription.tier === 'gold'
+                    ? 'GOLD MEMBER'
+                    : 'ALIGN PLUS'}
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.tierHeaderBadgeUpgrade}
+                onPress={() => {
+                  setTargetPremiumTier('gold');
+                  setPremiumModalVisible(true);
+                }}
+              >
+                <Ionicons name="sparkles" size={11} color="#F59E0B" />
+                <Text style={styles.tierHeaderUpgradeText}>GET PREMIUM</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
           <View style={styles.metaRow}>
             <Ionicons name="school" size={14} color="rgba(255,255,255,0.85)" />
             <Text style={styles.collegeText} numberOfLines={1}>{collegeName}</Text>
@@ -225,6 +284,120 @@ export default function Profile() {
           </View>
         </View>
       </LinearGradient>
+
+      {/* 3 Premium Tiers Hub */}
+      <View style={styles.premiumHubCard}>
+        <View style={styles.premiumHubHeader}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Ionicons name="sparkles" size={18} color="#F59E0B" />
+            <Text style={styles.premiumHubTitle}>Align Premium</Text>
+            {subscription?.has_subscription && (
+              <View style={styles.proPillActive}>
+                <Text style={styles.proPillActiveText}>
+                  {subscription.tier?.toUpperCase()} ACTIVE
+                </Text>
+              </View>
+            )}
+          </View>
+          <TouchableOpacity
+            onPress={() => {
+              setTargetPremiumTier((subscription?.tier as PremiumTier) || 'gold');
+              setPremiumModalVisible(true);
+            }}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: lightTheme.primary }}>
+              {subscription?.has_subscription ? 'Manage Plan' : 'View Plans'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* 3 Tiers Quick Preview */}
+        <View style={styles.tiersRow}>
+          {/* Plus */}
+          <TouchableOpacity
+            style={[
+              styles.tierMiniCard,
+              subscription?.tier === 'plus' && styles.tierMiniCardActive,
+              { borderColor: '#4E31E835' },
+            ]}
+            onPress={() => {
+              setTargetPremiumTier('plus');
+              setPremiumModalVisible(true);
+            }}
+          >
+            <View style={[styles.tierMiniIcon, { backgroundColor: '#4E31E8' }]}>
+              <Ionicons name="flash" size={14} color="#fff" />
+            </View>
+            <Text style={styles.tierMiniName}>PLUS</Text>
+            <Text style={styles.tierMiniPrice}>₹199/mo</Text>
+            <Text style={styles.tierMiniFeat}>Unlimited Swipes & Passport</Text>
+          </TouchableOpacity>
+
+          {/* Gold */}
+          <TouchableOpacity
+            style={[
+              styles.tierMiniCard,
+              subscription?.tier === 'gold' && styles.tierMiniCardActive,
+              { borderColor: '#F59E0B45' },
+            ]}
+            onPress={() => {
+              setTargetPremiumTier('gold');
+              setPremiumModalVisible(true);
+            }}
+          >
+            <View style={[styles.tierMiniIcon, { backgroundColor: '#F59E0B' }]}>
+              <Ionicons name="trophy" size={14} color="#fff" />
+            </View>
+            <Text style={[styles.tierMiniName, { color: '#D97706' }]}>GOLD</Text>
+            <Text style={styles.tierMiniPrice}>₹399/mo</Text>
+            <Text style={styles.tierMiniFeat}>Who Likes You & Photo AI</Text>
+          </TouchableOpacity>
+
+          {/* Diamond */}
+          <TouchableOpacity
+            style={[
+              styles.tierMiniCard,
+              subscription?.tier === 'diamond' && styles.tierMiniCardActive,
+              { borderColor: '#06B6D450' },
+            ]}
+            onPress={() => {
+              setTargetPremiumTier('diamond');
+              setPremiumModalVisible(true);
+            }}
+          >
+            <View style={[styles.tierMiniIcon, { backgroundColor: '#06B6D4' }]}>
+              <Ionicons name="diamond" size={14} color="#fff" />
+            </View>
+            <Text style={[styles.tierMiniName, { color: '#0891B2' }]}>DIAMOND</Text>
+            <Text style={styles.tierMiniPrice}>₹699/mo</Text>
+            <Text style={styles.tierMiniFeat}>Priority Likes & AI Wingman</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Action Links */}
+        <View style={styles.premiumQuickLinks}>
+          <TouchableOpacity
+            style={styles.premiumQuickBtn}
+            onPress={() => setWhoLikesMeModalVisible(true)}
+          >
+            <Ionicons name="heart-circle" size={18} color="#EF4444" />
+            <Text style={styles.premiumQuickText}>See Who Liked You</Text>
+            <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.premiumQuickBtn}
+            onPress={() => {
+              setTargetPremiumTier('diamond');
+              setPremiumModalVisible(true);
+            }}
+          >
+            <Ionicons name="sparkles" size={18} color="#8B5CF6" />
+            <Text style={styles.premiumQuickText}>AI Wingman & Radar</Text>
+            <Ionicons name="chevron-forward" size={14} color="#9CA3AF" />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       {/* Photos & Pro Insights Section */}
       <View style={styles.section}>
@@ -530,6 +703,28 @@ export default function Profile() {
         onProfileIconChanged={(url) => {
           setDetails((prev: any) => ({ ...prev, avatar_url: url }));
           fetchUserData();
+        }}
+      />
+
+      {/* Premium Subscriptions Modal */}
+      <PremiumModal
+        visible={premiumModalVisible}
+        onClose={() => setPremiumModalVisible(false)}
+        defaultTier={targetPremiumTier}
+        onSubscriptionUpdated={(sub) => {
+          setSubscription(sub);
+          fetchUserData();
+        }}
+      />
+
+      {/* Secret Admirers (Who Likes Me) Modal */}
+      <WhoLikesMeModal
+        visible={whoLikesMeModalVisible}
+        onClose={() => setWhoLikesMeModalVisible(false)}
+        subscription={subscription}
+        onOpenPremium={(tier) => {
+          setTargetPremiumTier(tier || 'gold');
+          setPremiumModalVisible(true);
         }}
       />
     </ScrollView>
@@ -953,5 +1148,138 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     color: lightTheme.text,
+  },
+  tierHeaderBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  tierHeaderBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  tierHeaderBadgeUpgrade: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    gap: 4,
+  },
+  tierHeaderUpgradeText: {
+    color: '#F59E0B',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  premiumHubCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 14,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  premiumHubHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  premiumHubTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#111',
+  },
+  proPillActive: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  proPillActiveText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  tiersRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 14,
+  },
+  tierMiniCard: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderRadius: 14,
+    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#FAFAFA',
+  },
+  tierMiniCardActive: {
+    backgroundColor: '#F0FDFA',
+    borderWidth: 2,
+  },
+  tierMiniIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  tierMiniName: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#4E31E8',
+  },
+  tierMiniPrice: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#111',
+    marginTop: 2,
+  },
+  tierMiniFeat: {
+    fontSize: 9,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginTop: 4,
+    lineHeight: 12,
+  },
+  premiumQuickLinks: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  premiumQuickBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 6,
+  },
+  premiumQuickText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+    flex: 1,
   },
 });

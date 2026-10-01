@@ -10,6 +10,9 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import * as SecureStore from 'expo-secure-store';
 import { logger } from '../../utils/logger';
+import WhoLikesMeModal from '../../components/WhoLikesMeModal';
+import PremiumModal from '../../components/PremiumModal';
+import { UserSubscription, PremiumTier } from '../../types/premium';
 
 type Match = {
   match_id: string;
@@ -25,6 +28,11 @@ export default function Matches() {
   const router = useRouter();
   const { session } = useAuthStore();
   const [matches, setMatches] = useState<Match[]>([]);
+  const [subscription, setSubscription] = useState<UserSubscription | null>(null);
+  const [whoLikesMeVisible, setWhoLikesMeVisible] = useState(false);
+  const [premiumModalVisible, setPremiumModalVisible] = useState(false);
+  const [targetTier, setTargetTier] = useState<PremiumTier>('gold');
+  const [inboundLikesCount, setInboundLikesCount] = useState(3);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -60,13 +68,17 @@ export default function Matches() {
 
   const fetchMatches = async () => {
     try {
-      const { data, error } = await supabase.rpc('get_matches');
-      if (error) {
-        logger.warn('Matches', 'Failed to fetch matches:', error.message);
-        setMatches([]);
-        return;
+      const [matchesRes, subRes, likesRes] = await Promise.all([
+        supabase.rpc('get_matches'),
+        supabase.rpc('get_user_subscription'),
+        supabase.rpc('get_who_likes_me', { p_limit: 20, p_offset: 0 }),
+      ]);
+
+      if (matchesRes.data) setMatches(matchesRes.data);
+      if (subRes.data) setSubscription(subRes.data);
+      if (likesRes.data && Array.isArray(likesRes.data)) {
+        setInboundLikesCount(likesRes.data.length);
       }
-      setMatches(data || []);
     } catch (err: any) {
       logger.warn('Matches', 'Error fetching matches:', err?.message || err);
       setMatches([]);
@@ -106,6 +118,37 @@ export default function Matches() {
 
   const renderHeader = () => (
     <View style={styles.listHeader}>
+      {/* Secret Admirers / Who Liked You Banner */}
+      <PressableScale 
+        style={styles.admirersBanner} 
+        onPress={() => setWhoLikesMeVisible(true)}
+      >
+        <View style={styles.admirersLeft}>
+          <View style={styles.admirersIcon}>
+            <Ionicons name="heart-circle" size={24} color="#F59E0B" />
+          </View>
+          <View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Typography variant="h4" weight="800">Secret Admirers</Typography>
+              <View style={styles.goldBadge}>
+                <Typography variant="caption" weight="800" color="#fff">GOLD 👑</Typography>
+              </View>
+            </View>
+            <Typography variant="caption" color="#64748B">
+              {subscription?.tier === 'gold' || subscription?.tier === 'diamond'
+                ? 'Tap to view & match with people who liked you'
+                : 'See everyone who swiped right on you'}
+            </Typography>
+          </View>
+        </View>
+        <View style={styles.requestsRight}>
+          <View style={[styles.badge, { backgroundColor: '#F59E0B' }]}>
+            <Typography variant="caption" color="#fff" weight="800">{inboundLikesCount > 0 ? inboundLikesCount : '3+'}</Typography>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#ccc" />
+        </View>
+      </PressableScale>
+
       {/* Message Requests Banner */}
       <PressableScale 
         style={styles.requestsBanner} 
@@ -199,6 +242,28 @@ export default function Matches() {
           />
         )}
       </View>
+
+      {/* Secret Admirers Modal */}
+      <WhoLikesMeModal
+        visible={whoLikesMeVisible}
+        onClose={() => setWhoLikesMeVisible(false)}
+        subscription={subscription}
+        onOpenPremium={(tier) => {
+          setTargetTier(tier || 'gold');
+          setPremiumModalVisible(true);
+        }}
+      />
+
+      {/* Premium Subscriptions Modal */}
+      <PremiumModal
+        visible={premiumModalVisible}
+        onClose={() => setPremiumModalVisible(false)}
+        defaultTier={targetTier}
+        onSubscriptionUpdated={(sub) => {
+          setSubscription(sub);
+          fetchMatches();
+        }}
+      />
     </View>
   );
 }
@@ -315,5 +380,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 6,
+  },
+  admirersBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginHorizontal: 24,
+    marginBottom: 12,
+    backgroundColor: '#FFFBEB',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#FDE68A',
+  },
+  admirersLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  admirersIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FEF3C7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  goldBadge: {
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 6,
   },
 });

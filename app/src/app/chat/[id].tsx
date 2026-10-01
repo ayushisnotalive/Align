@@ -11,12 +11,17 @@ import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
 import * as ImagePicker from 'expo-image-picker';
 import { logger } from '../../utils/logger';
+import AiWingmanModal from '../../components/AiWingmanModal';
+import PremiumModal from '../../components/PremiumModal';
 
 export default function ChatScreen() {
   const router = useRouter();
   const { id: matchId, name, otherUserId: paramOtherUserId } = useLocalSearchParams<{ id: string; name: string; otherUserId?: string }>();
   const [otherUserId, setOtherUserId] = useState<string | undefined>(paramOtherUserId);
   const [messages, setMessages] = useState<IMessage[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [showWingman, setShowWingman] = useState(false);
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
   const { session } = useAuthStore();
   
   // Resolve otherUserId if not passed in params
@@ -135,6 +140,7 @@ export default function ChatScreen() {
   const onSend = useCallback(async (newMessages: IMessage[] = []) => {
     const msg = newMessages[0];
     if (!msg || !session?.user.id) return;
+    setInputText('');
 
     // Optimistically update UI
     setMessages(previousMessages => GiftedChat.append(previousMessages, newMessages));
@@ -269,9 +275,12 @@ export default function ChatScreen() {
   };
 
   const renderInputToolbar = (props: any) => (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, backgroundColor: lightTheme.surface, borderTopWidth: 1, borderColor: lightTheme.border }}>
-      <PressableScale onPress={pickImage} style={{ padding: 8 }}>
-        <Ionicons name="image" size={28} color={lightTheme.primary} />
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, backgroundColor: lightTheme.surface, borderTopWidth: 1, borderColor: lightTheme.border }}>
+      <PressableScale onPress={pickImage} style={{ padding: 6 }}>
+        <Ionicons name="image" size={26} color={lightTheme.primary} />
+      </PressableScale>
+      <PressableScale onPress={() => setShowWingman(true)} style={{ padding: 6 }}>
+        <Ionicons name="sparkles" size={24} color="#7928CA" />
       </PressableScale>
       <InputToolbar 
         {...props} 
@@ -284,6 +293,8 @@ export default function ChatScreen() {
   const renderComposer = (props: any) => (
     <Composer
       {...props}
+      text={inputText}
+      onTextChanged={(val: string) => setInputText(val)}
       textInputStyle={styles.composerInput}
       placeholderTextColor={lightTheme.textSecondary}
     />
@@ -337,14 +348,24 @@ export default function ChatScreen() {
           <Ionicons name="chevron-back" size={28} color={lightTheme.primary} />
         </PressableScale>
         <Typography variant="h4">{name}</Typography>
-        <PressableScale style={styles.optionsButton} onPress={handleOptions}>
-          <Ionicons name="ellipsis-horizontal" size={24} color={lightTheme.primary} />
-        </PressableScale>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <PressableScale
+            style={styles.wingmanHeaderBtn}
+            onPress={() => setShowWingman(true)}
+          >
+            <Ionicons name="sparkles" size={14} color="#7928CA" />
+            <Text style={styles.wingmanHeaderBtnText}>Wingman</Text>
+          </PressableScale>
+          <PressableScale style={styles.optionsButton} onPress={handleOptions}>
+            <Ionicons name="ellipsis-horizontal" size={24} color={lightTheme.primary} />
+          </PressableScale>
+        </View>
       </View>
       
       <Animated.View style={[styles.chatContainer, animatedPaddingStyle]}>
         <GiftedChat
           messages={messages}
+          text={inputText}
           onSend={messages => onSend(messages)}
           user={{ _id: session?.user?.id || '' }}
           renderBubble={renderBubble}
@@ -358,6 +379,27 @@ export default function ChatScreen() {
           minInputToolbarHeight={70}
         />
       </Animated.View>
+
+      {/* AI Wingman Modal for Diamond Members */}
+      <AiWingmanModal
+        visible={showWingman}
+        onClose={() => setShowWingman(false)}
+        matchName={name || 'Match'}
+        onSelectOpener={(opener: string) => {
+          setInputText(opener);
+        }}
+        onUpgradeToDiamond={() => {
+          setShowWingman(false);
+          setShowPremiumModal(true);
+        }}
+      />
+
+      {/* 3-Tier Premium Modal */}
+      <PremiumModal
+        visible={showPremiumModal}
+        onClose={() => setShowPremiumModal(false)}
+        initialTier={'diamond'}
+      />
     </View>
   );
 }
@@ -436,5 +478,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#eee',
     ...lightTheme.shadows.sm,
-  }
+  },
+  wingmanHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3E8FF',
+    borderWidth: 1,
+    borderColor: '#D8B4FE',
+  },
+  wingmanHeaderBtnText: {
+    color: '#7928CA',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

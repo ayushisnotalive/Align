@@ -20,6 +20,8 @@ import { useRouter } from 'expo-router';
 import { getImageUrl, getPhotoUrl } from '../../utils/media';
 import { logger } from '../../utils/logger';
 import ProfileModal from '../../components/ProfileModal';
+import PremiumModal from '../../components/PremiumModal';
+import { PremiumTier } from '../../types/premium';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -32,6 +34,8 @@ export default function Discover() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedProfile, setSelectedProfile] = useState<any | null>(null);
   const [photoIndexMap, setPhotoIndexMap] = useState<{ [id: string]: number }>({});
+  const [showPremiumModal, setShowPremiumModal] = useState(false);
+  const [premiumInitialTier, setPremiumInitialTier] = useState<PremiumTier>('plus');
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -139,6 +143,71 @@ export default function Discover() {
       runOnJS(onSwipeComplete)(direction);
     });
     translateY.value = withSpring(toY, { velocity: 50 });
+  };
+
+  const handleRewind = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const { data, error } = await supabase.rpc('rewind_last_swipe');
+      if (error) {
+        if (error.message?.includes('subscription required') || error.message?.includes('Align Plus')) {
+          Alert.alert(
+            '⚡ Rewind is an Align Plus Feature',
+            'Accidentally swiped left? Get Align Plus, Gold, or Diamond to rewind your last swipe anytime!',
+            [
+              { text: 'Not now', style: 'cancel' },
+              {
+                text: 'View Plans',
+                onPress: () => {
+                  setPremiumInitialTier('plus');
+                  setShowPremiumModal(true);
+                },
+              },
+            ]
+          );
+        } else {
+          Alert.alert('Cannot Rewind', error.message || 'No swipe available to rewind.');
+        }
+        return;
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Swiped Rewound! ⏪', 'Your last swipe has been undone.');
+      await fetchFeed();
+    } catch (err: any) {
+      Alert.alert('Rewind Error', err?.message || 'Failed to rewind swipe');
+    }
+  };
+
+  const handleBoost = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    try {
+      const { data, error } = await supabase.rpc('boost_user_profile');
+      if (error) {
+        if (error.message?.includes('subscription required') || error.message?.includes('Align Plus')) {
+          Alert.alert(
+            '⚡ 10x Profile Views with Boost',
+            'Get 1 Free Campus Boost every week with Align Plus, Gold, or Diamond to jump to the front of every card deck for 30 minutes!',
+            [
+              { text: 'Later', style: 'cancel' },
+              {
+                text: 'Unlock Boost',
+                onPress: () => {
+                  setPremiumInitialTier('plus');
+                  setShowPremiumModal(true);
+                },
+              },
+            ]
+          );
+        } else {
+          Alert.alert('Boost Notice', error.message || 'Could not activate boost.');
+        }
+        return;
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('🚀 Campus Boost Active!', 'Your profile is now pinned to the top of all decks across campus for the next 30 minutes!');
+    } catch (err: any) {
+      Alert.alert('Boost Error', err?.message || 'Failed to boost profile');
+    }
   };
 
   const panGesture = Gesture.Pan()
@@ -269,10 +338,25 @@ export default function Discover() {
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.88)']} style={styles.gradient}>
             <View style={styles.cardInfo}>
               <View style={styles.nameRow}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, flexWrap: 'wrap', gap: 6 }}>
                   <Text style={styles.name}>{p.first_name || 'Student'}, {p.age || 21}</Text>
                   {p.is_blue_tick && (
-                    <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" style={{ marginLeft: 6 }} />
+                    <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />
+                  )}
+                  {p.subscription_tier === 'diamond' && (
+                    <View style={styles.diamondBadge}>
+                      <Text style={styles.diamondBadgeText}>💎 VIP</Text>
+                    </View>
+                  )}
+                  {p.subscription_tier === 'gold' && (
+                    <View style={styles.goldBadge}>
+                      <Text style={styles.goldBadgeText}>👑 Gold</Text>
+                    </View>
+                  )}
+                  {p.is_boosted && (
+                    <View style={styles.boostBadge}>
+                      <Text style={styles.boostBadgeText}>⚡ Boosted</Text>
+                    </View>
                   )}
                 </View>
                 <TouchableOpacity 
@@ -357,9 +441,21 @@ export default function Discover() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Typography variant="h1">Discover</Typography>
-          <PressableScale style={styles.filterBtn} onPress={() => router.push('/discovery-settings' as any)}>
-            <Ionicons name="options" size={24} color={lightTheme.primary} />
-          </PressableScale>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <PressableScale
+              style={styles.upgradeHeaderBtn}
+              onPress={() => {
+                setPremiumInitialTier('gold');
+                setShowPremiumModal(true);
+              }}
+            >
+              <Ionicons name="sparkles" size={16} color="#D4AF37" />
+              <Text style={styles.upgradeHeaderBtnText}>UPGRADE</Text>
+            </PressableScale>
+            <PressableScale style={styles.filterBtn} onPress={() => router.push('/discovery-settings' as any)}>
+              <Ionicons name="options" size={24} color={lightTheme.primary} />
+            </PressableScale>
+          </View>
         </View>
         
         <View style={styles.cardContainer}>
@@ -367,7 +463,7 @@ export default function Discover() {
         </View>
         
         <View style={styles.actions}>
-          <PressableScale style={[styles.actionButton, styles.shadowBtn, { width: 50, height: 50 }]} onPress={() => Alert.alert('Premium feature', 'Rewind is a premium feature.')}>
+          <PressableScale style={[styles.actionButton, styles.shadowBtn, { width: 50, height: 50 }]} onPress={handleRewind}>
             <Ionicons name="return-up-back" size={24} color="#f5b041" />
           </PressableScale>
           <PressableScale style={[styles.actionButton, styles.shadowBtn]} onPress={() => forceSwipe('left')}>
@@ -379,7 +475,7 @@ export default function Discover() {
           <PressableScale style={[styles.actionButton, styles.likeButton, styles.shadowBtn]} onPress={() => forceSwipe('right')}>
             <Ionicons name="heart" size={36} color="#fff" />
           </PressableScale>
-          <PressableScale style={[styles.actionButton, styles.shadowBtn, { width: 50, height: 50 }]} onPress={() => Alert.alert('Premium feature', 'Boost is a premium feature.')}>
+          <PressableScale style={[styles.actionButton, styles.shadowBtn, { width: 50, height: 50 }]} onPress={handleBoost}>
             <Ionicons name="flash" size={24} color="#9b59b6" />
           </PressableScale>
         </View>
@@ -389,6 +485,14 @@ export default function Discover() {
           visible={!!selectedProfile}
           onClose={() => setSelectedProfile(null)}
           user={selectedProfile}
+        />
+
+        {/* 3-Tier Premium Modal */}
+        <PremiumModal
+          visible={showPremiumModal}
+          onClose={() => setShowPremiumModal(false)}
+          initialTier={premiumInitialTier}
+          onUpgradeSuccess={() => fetchFeed()}
         />
       </View>
     </GestureHandlerRootView>
@@ -562,5 +666,61 @@ const styles = StyleSheet.create({
   },
   touchZoneRight: {
     flex: 1,
+  },
+  upgradeHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: 'rgba(212, 175, 55, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 175, 55, 0.5)',
+  },
+  upgradeHeaderBtnText: {
+    color: '#D4AF37',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  diamondBadge: {
+    backgroundColor: 'rgba(0, 242, 254, 0.25)',
+    borderColor: '#00F2FE',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  diamondBadgeText: {
+    color: '#E0FFFF',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  goldBadge: {
+    backgroundColor: 'rgba(255, 215, 0, 0.25)',
+    borderColor: '#FFD700',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  goldBadgeText: {
+    color: '#FFEAA7',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  boostBadge: {
+    backgroundColor: 'rgba(155, 89, 182, 0.35)',
+    borderColor: '#9B59B6',
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  boostBadgeText: {
+    color: '#E8DAEF',
+    fontSize: 11,
+    fontWeight: '800',
   },
 });
