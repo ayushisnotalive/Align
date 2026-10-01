@@ -24,13 +24,6 @@
 - [x] Phase 13: Polish & Bug Fixes (`audit_fixes`, `code_quality`)
 - [x] Phase 14: Messaging & Incognito (`reactions`, `media_share`, `incognito`)
 
-## Milestone 5: Play Store Production Launch & Hardening
-- [x] Phase 15: Error Resilience & Log Cleanliness (`logging`, `error_handling`, `likes_fix`)
-- [x] Phase 16: Play Store Launch Readiness & UI Polish (`play_store`, `android_manifest`, `ui_polish`)
-
-### Phase 15: Error Resilience & Log Cleanliness (`logging`, `error_handling`, `likes_fix`)
-Fix `likes.tsx` data fetching and photo mapping. Centralize logging with `logger.ts` to eliminate raw console.error/warn redboxes. Add robust fallbacks for unauthenticated/offline states across tabs and onboarding.
-
-### Phase 16: Play Store Launch Readiness & UI Polish (`play_store`, `android_manifest`, `ui_polish`)
-Ensure Play Store compliance: add Android `versionCode: 1`, verify asset icons/splash, provide root `package.json` proxy scripts, verify permissions, and validate build readiness.
+### Milestone 5: Play Store Production Launch & Hardening (Shipped)
+Archived to [5.0-ROADMAP.md](./milestones/5.0-ROADMAP.md)
 
