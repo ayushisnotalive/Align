@@ -84,9 +84,10 @@ export default function Matches() {
 
   const getImageUrl = (s3Key: string | null) => {
     if (s3Key) {
+      if (s3Key.startsWith('http')) return s3Key;
       return `https://align-media.s3.amazonaws.com/${s3Key}`;
     }
-    return 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800'; // Default placeholder
+    return 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500';
   };
 
   const newMatches = matches.filter(m => m.is_new);

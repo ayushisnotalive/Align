@@ -15,8 +15,15 @@ export default function Splash() {
 
     const checkProfileAndRoute = async () => {
       if (session) {
-        if (session.user.email === 'theayushchakraborty@gmail.com') {
-          router.replace('/admin' as any);
+        // Fetch profile to check onboarding completion
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('profile_complete, onboarding_step')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (profile?.profile_complete) {
+          router.replace('/(tabs)/discover' as any); 
           return;
         }
 
@@ -32,18 +39,7 @@ export default function Splash() {
           return;
         }
 
-        // Fetch profile to see if it's complete
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('profile_complete')
-          .eq('id', session.user.id)
-          .single();
-
-        if (data && data.profile_complete) {
-          router.replace('/(tabs)/discover' as any); 
-        } else {
-          router.replace('/(onboarding)/step1-profile' as any);
-        }
+        router.replace('/(onboarding)/step1-profile' as any);
       } else {
         router.replace('/(auth)/login');
       }

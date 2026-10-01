@@ -205,10 +205,10 @@ export default function Discover() {
               <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.gradient}>
                 <View style={styles.cardInfo}>
                   <View style={styles.nameRow}>
-                    <Text style={styles.name}>{profile.first_name}, {profile.age}</Text>
+                    <Text style={styles.name}>{profile.first_name || 'Student'}, {profile.age || 21}</Text>
                     {profile.is_blue_tick && <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />}
                   </View>
-                  <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college?.college_name || 'No College'}</Text>
+                  <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college?.college_name || profile.school || 'Campus Student'}</Text>
                   {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
                 </View>
               </LinearGradient>
@@ -226,10 +226,10 @@ export default function Discover() {
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.85)']} style={styles.gradient}>
             <View style={styles.cardInfo}>
               <View style={styles.nameRow}>
-                <Text style={styles.name}>{profile.first_name}, {profile.age}</Text>
+                <Text style={styles.name}>{profile.first_name || 'Student'}, {profile.age || 21}</Text>
                 {profile.is_blue_tick && <Ionicons name="checkmark-circle" size={24} color="#1DA1F2" />}
               </View>
-              <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college?.college_name || 'No College'}</Text>
+              <Text style={styles.college}><Ionicons name="school" size={16} color="#ccc" /> {profile.college?.college_name || profile.school || 'Campus Student'}</Text>
               {profile.bio && <Text style={styles.bio}>{profile.bio}</Text>}
             </View>
           </LinearGradient>

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Modal, FlatList } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator, Modal, FlatList, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { lightTheme } from '../theme/colors';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/useAuthStore';
 import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../utils/logger';
+
+import AvatarPickerModal from '../components/AvatarPickerModal';
+import { DEFAULT_AVATAR } from '../constants/avatars';
 
 // Data Options
 const OPTIONS = {
@@ -39,6 +42,7 @@ export default function EditProfile() {
   
   // Modal State
   const [modalVisible, setModalVisible] = useState(false);
+  const [avatarModalVisible, setAvatarModalVisible] = useState(false);
   const [currentField, setCurrentField] = useState<{key: string, label: string, options: string[]}|null>(null);
 
   useEffect(() => {
@@ -152,6 +156,18 @@ export default function EditProfile() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         
+        <View style={styles.avatarSection}>
+          <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={styles.avatarWrap}>
+            <Image source={{ uri: details.avatar_url || DEFAULT_AVATAR }} style={styles.avatarImg} />
+            <View style={styles.avatarBadge}>
+              <Ionicons name="camera" size={14} color="#fff" />
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setAvatarModalVisible(true)} style={{ marginTop: 8 }}>
+            <Text style={styles.changeAvatarText}>Change Profile Icon</Text>
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.sectionHeader}>Basics & Bio</Text>
         <View style={styles.fieldContainer}>
           <Text style={styles.label}>First Name</Text>
@@ -238,6 +254,14 @@ export default function EditProfile() {
           </View>
         </View>
       </Modal>
+
+      {/* Avatar Picker Modal */}
+      <AvatarPickerModal
+        visible={avatarModalVisible}
+        onClose={() => setAvatarModalVisible(false)}
+        onSelect={(url) => updateDetail('avatar_url', url)}
+        currentAvatarUrl={details.avatar_url}
+      />
     </View>
   );
 }
@@ -276,4 +300,9 @@ const styles = StyleSheet.create({
   optionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   optionText: { fontSize: 16, color: lightTheme.text },
   optionSelected: { color: lightTheme.primary, fontWeight: 'bold' },
+  avatarSection: { alignItems: 'center', marginVertical: 16 },
+  avatarWrap: { position: 'relative' },
+  avatarImg: { width: 90, height: 90, borderRadius: 45, backgroundColor: '#eee', borderWidth: 3, borderColor: lightTheme.primary },
+  avatarBadge: { position: 'absolute', bottom: 0, right: 0, backgroundColor: lightTheme.primary, width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#fff' },
+  changeAvatarText: { color: lightTheme.primary, fontWeight: '700', fontSize: 14 },
 });

@@ -1,72 +1,138 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { lightTheme } from '../../theme/colors';
-
 import { useAuthStore } from '../../store/useAuthStore';
 import { supabase } from '../../lib/supabase';
+import { logger } from '../../utils/logger';
+
+const POPULAR_INTERESTS = [
+  'Coding', 'Music', 'Gym & Fitness', 'Gaming', 'Coffee', 'Photography',
+  'Anime', 'Startups', 'Travel', 'Design', 'Reading', 'Cinema', 'Foodie', 'Fashion'
+];
+
+const ZODIAC_SIGNS = [
+  'Aries', 'Taurus', 'Gemini', 'Cancer', 'Leo', 'Virgo',
+  'Libra', 'Scorpio', 'Sagittarius', 'Capricorn', 'Aquarius', 'Pisces'
+];
 
 export default function Step5Attributes() {
   const router = useRouter();
   const { session } = useAuthStore();
 
-  const [smoking, setSmoking] = useState<string | null>(null);
-  const [drinking, setDrinking] = useState<string | null>(null);
-  const [workout, setWorkout] = useState<string | null>(null);
+  const [selectedInterests, setSelectedInterests] = useState<string[]>(['Coding', 'Music', 'Coffee']);
+  const [zodiac, setZodiac] = useState<string>('Leo');
+  const [smoking, setSmoking] = useState<string>('Never');
+  const [drinking, setDrinking] = useState<string>('Socially');
+  const [workout, setWorkout] = useState<string>('Active');
   const [saving, setSaving] = useState(false);
 
+  const toggleInterest = (interest: string) => {
+    if (selectedInterests.includes(interest)) {
+      setSelectedInterests(selectedInterests.filter(i => i !== interest));
+    } else {
+      if (selectedInterests.length >= 6) {
+        Alert.alert('Limit Reached', 'You can pick up to 6 interests.');
+        return;
+      }
+      setSelectedInterests([...selectedInterests, interest]);
+    }
+  };
+
   const handleFinish = async () => {
-    if (!session) return;
+    if (!session?.user?.id) return;
     setSaving(true);
     
-    // Update profiles completion
-    await supabase.from('profiles').update({
-      profile_complete: true,
-      onboarding_step: 5
-    }).eq('id', session.user.id);
-    
-    // Insert/update profile_details
-    const { data: existing } = await supabase.from('profile_details').select('user_id').eq('user_id', session.user.id).single();
-    if (existing) {
-      await supabase.from('profile_details').update({
-        smoking_habits: smoking,
-        drinking_frequency: drinking,
-        workout_habits: workout,
-      }).eq('user_id', session.user.id);
-    } else {
-      await supabase.from('profile_details').insert({
+    try {
+      // 1. Update profiles completion
+      const { error: pError } = await supabase.from('profiles').update({
+        profile_complete: true,
+        onboarding_step: 5
+      }).eq('id', session.user.id);
+
+      if (pError) {
+        logger.warn('Step5Attributes', 'Profile complete update error:', pError.message);
+      }
+
+      // 2. Insert/update profile_details
+      await supabase.from('profile_details').upsert({
         user_id: session.user.id,
         smoking_habits: smoking,
         drinking_frequency: drinking,
         workout_habits: workout,
-      });
-    }
+        zodiac_sign: zodiac,
+        interests: selectedInterests,
+      }, { onConflict: 'user_id' });
 
-    setSaving(false);
-    router.replace('/(tabs)/discover' as any);
+      // 3. Complete onboarding and route to discover
+      router.replace('/(tabs)/discover' as any);
+    } catch (err: any) {
+      logger.warn('Step5Attributes', 'Failed to save step 5:', err?.message || err);
+      router.replace('/(tabs)/discover' as any);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>More about you</Text>
+      <Text style={styles.title}>Interests & Vibe</Text>
       <Text style={styles.subtitle}>
-        Adding optional details helps you find better matches. You can always skip or hide these later.
+        Select your interests and lifestyle to help our matching engine connect you with campus kindred spirits.
       </Text>
       
-      {/* Placeholder for attribute questions */}
+      {/* Interests */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader}>Your Interests (Pick up to 6)</Text>
+        <View style={styles.chipsRow}>
+          {POPULAR_INTERESTS.map((item) => {
+            const active = selectedInterests.includes(item);
+            return (
+              <TouchableOpacity
+                key={item}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => toggleInterest(item)}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{item}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* Zodiac */}
+      <View style={styles.section}>
+        <Text style={styles.sectionHeader}>Zodiac Sign</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          {ZODIAC_SIGNS.map((sign) => {
+            const active = zodiac === sign;
+            return (
+              <TouchableOpacity
+                key={sign}
+                style={[styles.zodiacChip, active && styles.chipActive]}
+                onPress={() => setZodiac(sign)}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{sign}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Lifestyle questions */}
       <View style={styles.questionCard}>
-        <Text style={styles.questionTitle}>Do you smoke?</Text>
+        <Text style={styles.questionTitle}>Workout & Fitness</Text>
         <View style={styles.optionsRow}>
-          {['Never', 'Socially', 'Regularly'].map(opt => (
-            <TouchableOpacity key={opt} style={[styles.optionChip, smoking === opt && styles.optionChipActive]} onPress={() => setSmoking(opt)}>
-              <Text style={[styles.optionText, smoking === opt && styles.optionTextActive]}>{opt}</Text>
+          {['Never', 'Sometimes', 'Active', 'Daily'].map(opt => (
+            <TouchableOpacity key={opt} style={[styles.optionChip, workout === opt && styles.optionChipActive]} onPress={() => setWorkout(opt)}>
+              <Text style={[styles.optionText, workout === opt && styles.optionTextActive]}>{opt}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
       <View style={styles.questionCard}>
-        <Text style={styles.questionTitle}>Do you drink?</Text>
+        <Text style={styles.questionTitle}>Drinking</Text>
         <View style={styles.optionsRow}>
           {['Never', 'Socially', 'Regularly'].map(opt => (
             <TouchableOpacity key={opt} style={[styles.optionChip, drinking === opt && styles.optionChipActive]} onPress={() => setDrinking(opt)}>
@@ -77,18 +143,26 @@ export default function Step5Attributes() {
       </View>
 
       <View style={styles.questionCard}>
-        <Text style={styles.questionTitle}>Do you workout?</Text>
+        <Text style={styles.questionTitle}>Smoking</Text>
         <View style={styles.optionsRow}>
-          {['Never', 'Sometimes', 'Active', 'Daily'].map(opt => (
-            <TouchableOpacity key={opt} style={[styles.optionChip, workout === opt && styles.optionChipActive]} onPress={() => setWorkout(opt)}>
-              <Text style={[styles.optionText, workout === opt && styles.optionTextActive]}>{opt}</Text>
+          {['Never', 'Socially', 'Regularly'].map(opt => (
+            <TouchableOpacity key={opt} style={[styles.optionChip, smoking === opt && styles.optionChipActive]} onPress={() => setSmoking(opt)}>
+              <Text style={[styles.optionText, smoking === opt && styles.optionTextActive]}>{opt}</Text>
             </TouchableOpacity>
           ))}
         </View>
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleFinish} disabled={saving}>
-        <Text style={styles.buttonText}>{saving ? 'Saving...' : 'Finish Profile'}</Text>
+      <TouchableOpacity 
+        style={[styles.button, saving && styles.buttonDisabled]} 
+        onPress={handleFinish} 
+        disabled={saving}
+      >
+        {saving ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Finish & Discover Campus ✨</Text>
+        )}
       </TouchableOpacity>
     </ScrollView>
   );
@@ -97,36 +171,74 @@ export default function Step5Attributes() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: lightTheme.background,
+    backgroundColor: '#fff',
   },
   content: {
     padding: 24,
+    paddingBottom: 48,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
+    fontWeight: '900',
     color: lightTheme.text,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
-    marginBottom: 32,
+    marginBottom: 28,
     lineHeight: 22,
   },
+  section: {
+    marginBottom: 24,
+  },
+  sectionHeader: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: lightTheme.text,
+    marginBottom: 12,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    backgroundColor: '#f0f2f8',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
+  chipActive: {
+    backgroundColor: lightTheme.primary,
+  },
+  chipText: {
+    color: lightTheme.text,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  chipTextActive: {
+    color: '#fff',
+  },
+  zodiacChip: {
+    backgroundColor: '#f0f2f8',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+  },
   questionCard: {
-    backgroundColor: lightTheme.card,
-    borderRadius: 12,
+    backgroundColor: '#f8f9fc',
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: lightTheme.border,
+    borderColor: '#e8ecf4',
   },
   questionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '700',
     color: lightTheme.text,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   optionsRow: {
     flexDirection: 'row',
@@ -134,12 +246,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   optionChip: {
-    backgroundColor: lightTheme.background,
+    backgroundColor: '#fff',
     paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
+    paddingHorizontal: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: lightTheme.border,
+    borderColor: '#e0e4f0',
   },
   optionChipActive: {
     backgroundColor: lightTheme.primary,
@@ -148,20 +260,24 @@ const styles = StyleSheet.create({
   optionText: {
     color: lightTheme.text,
     fontWeight: '500',
+    fontSize: 13,
   },
   optionTextActive: {
     color: '#fff',
   },
   button: {
     backgroundColor: lightTheme.primary,
-    padding: 16,
-    borderRadius: 12,
+    paddingVertical: 16,
+    borderRadius: 24,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 20,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
   },
 });

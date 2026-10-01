@@ -1,21 +1,36 @@
 const S3_BASE_URL = 'https://align-media.s3.amazonaws.com';
-const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800';
+export const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=800';
 
 /**
- * Build the display URL for a user's primary photo.
+ * Build the display URL for a user's primary photo or avatar.
  * Falls back to a stock image when no photos exist.
  */
-export function getImageUrl(profile?: { photos?: { s3_key?: string }[]; s3_key?: string | null } | null): string {
+export function getImageUrl(profile?: { 
+  photos?: { s3_key?: string }[]; 
+  s3_key?: string | null; 
+  avatar_url?: string | null;
+  image?: string | null;
+} | null): string {
   if (!profile) return FALLBACK_AVATAR;
 
+  if (profile.avatar_url) {
+    return profile.avatar_url;
+  }
+
+  if (profile.image) {
+    return profile.image;
+  }
+
   if (profile.s3_key) {
+    if (profile.s3_key.startsWith('http')) return profile.s3_key;
     return `${S3_BASE_URL}/${profile.s3_key}`;
   }
 
   if (Array.isArray(profile.photos) && profile.photos.length > 0 && profile.photos[0]?.s3_key) {
-    return `${S3_BASE_URL}/${profile.photos[0].s3_key}`;
+    const key = profile.photos[0].s3_key;
+    if (key.startsWith('http')) return key;
+    return `${S3_BASE_URL}/${key}`;
   }
 
   return FALLBACK_AVATAR;
 }
-

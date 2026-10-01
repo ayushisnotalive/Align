@@ -47,7 +47,7 @@ export default function ProfileModal({ visible, onClose, user }: ProfileModalPro
         </View>
         
         <ScrollView style={styles.scroll}>
-          <Image source={{ uri: user.images[0] || 'https://via.placeholder.com/400' }} style={styles.coverImage} />
+          <Image source={{ uri: (user.images && user.images[0]) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500' }} style={styles.coverImage} />
           <View style={styles.content}>
             <View style={styles.nameRow}>
               <Text style={styles.name}>{user.name}, {user.age}</Text>

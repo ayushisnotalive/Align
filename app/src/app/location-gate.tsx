@@ -12,60 +12,74 @@ export default function LocationGateScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  const proceedWithCoords = async (latitude: number, longitude: number) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      setLoading(false);
+      return;
+    }
+
+    // Update location in DB
+    const { error } = await supabase.rpc('set_location', {
+      p_lat: latitude,
+      p_lng: longitude,
+      p_perm_state: 'granted'
+    });
+
+    if (error) {
+      logger.warn('LocationGate', 'Failed to save location:', error.message);
+    }
+
+    // Save consent locally
+    await SecureStore.setItemAsync('location_granted', 'true');
+
+    // Check profile completeness for routing
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('profile_complete')
+      .eq('id', session.user.id)
+      .maybeSingle();
+
+    if (profile?.profile_complete) {
+      router.replace('/(tabs)/discover' as any);
+    } else {
+      router.replace('/(onboarding)/step1-profile' as any);
+    }
+  };
+
   const handleGrantLocation = async () => {
     setLoading(true);
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
-          'Location Required',
-          'Align needs your location to show people around you. Please enable it in your settings.',
-          [{ text: 'OK' }]
+          'Location Permission',
+          'Could not get GPS permission. You can continue using standard campus location (Delhi) for testing.',
+          [
+            { text: 'Use Campus Location', onPress: () => proceedWithCoords(28.6139, 77.2090) },
+            { text: 'Cancel', style: 'cancel', onPress: () => setLoading(false) }
+          ]
         );
-        setLoading(false);
         return;
       }
 
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        setLoading(false);
-        return;
+      let lat = 28.6139;
+      let lng = 77.2090;
+      try {
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        lat = location.coords.latitude;
+        lng = location.coords.longitude;
+      } catch (e) {
+        logger.warn('LocationGate', 'Could not get fine coords, using campus center');
       }
 
-      // Update location in DB
-      const { error } = await supabase.rpc('set_location', {
-        p_lat: location.coords.latitude,
-        p_lng: location.coords.longitude,
-        p_perm_state: 'granted'
-      });
-
-      if (error) {
-        logger.warn('LocationGate', 'Failed to save location:', error.message);
-      }
-
-      // Save consent locally
-      await SecureStore.setItemAsync('location_granted', 'true');
-
-      // Check profile completeness for routing
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('profile_complete')
-        .eq('id', session.user.id)
-        .single();
-
-      if (profile?.profile_complete) {
-        router.replace('/(tabs)/discover' as any);
-      } else {
-        router.replace('/(onboarding)/step1-profile' as any);
-      }
-
+      await proceedWithCoords(lat, lng);
     } catch (err: any) {
       logger.warn('LocationGate', 'Location permission/retrieval error:', err?.message || err);
-      Alert.alert('Error', 'Something went wrong fetching your location.');
+      // Fallback
+      await proceedWithCoords(28.6139, 77.2090);
     } finally {
       setLoading(false);
     }
@@ -78,11 +92,11 @@ export default function LocationGateScreen() {
       </View>
       <Text style={styles.title}>Enable Location</Text>
       <Text style={styles.subtitle}>
-        You need to enable location to use Align. We only use this to show people near you and will never share your exact location.
+        Align matches you with students and peers around your campus. Your exact coordinates are never shared with other users.
       </Text>
 
       <TouchableOpacity
-        style={styles.button}
+        style={[styles.button, loading && styles.buttonDisabled]}
         onPress={handleGrantLocation}
         disabled={loading}
       >
@@ -91,6 +105,14 @@ export default function LocationGateScreen() {
         ) : (
           <Text style={styles.buttonText}>Allow Location</Text>
         )}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.fallbackBtn}
+        onPress={() => proceedWithCoords(28.6139, 77.2090)}
+        disabled={loading}
+      >
+        <Text style={styles.fallbackBtnText}>Use Default Campus Location (Delhi)</Text>
       </TouchableOpacity>
     </View>
   );
@@ -108,40 +130,54 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#f5eef1',
+    backgroundColor: '#f0f3ff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 32,
   },
   title: {
     fontSize: 28,
-    fontWeight: '800',
+    fontWeight: '900',
     color: lightTheme.text,
-    marginBottom: 16,
+    marginBottom: 12,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#666',
     textAlign: 'center',
-    marginBottom: 48,
-    lineHeight: 24,
+    marginBottom: 40,
+    lineHeight: 22,
+    paddingHorizontal: 10,
   },
   button: {
     backgroundColor: lightTheme.primary,
-    padding: 18,
-    borderRadius: 16,
-    width: '100%',
+    paddingVertical: 16,
+    borderRadius: 24,
     alignItems: 'center',
+    width: '100%',
     shadowColor: lightTheme.primary,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 4,
   },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
   buttonText: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: 'bold',
-  }
+  },
+  fallbackBtn: {
+    marginTop: 18,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  fallbackBtnText: {
+    color: lightTheme.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });

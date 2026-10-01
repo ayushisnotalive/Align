@@ -4,11 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { lightTheme } from '../../theme/colors';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useRouter } from 'expo-router';
 import { getImageUrl } from '../../utils/media';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
 export default function CollegeFeed() {
+  const router = useRouter();
   const { session } = useAuthStore();
   const [scope, setScope] = useState<'college' | 'city' | 'state'>('college');
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -76,7 +78,7 @@ export default function CollegeFeed() {
         <Ionicons name="lock-closed" size={64} color={lightTheme.primary} style={{ marginBottom: 16 }} />
         <Text style={styles.errorText}>{errorMsg}</Text>
         {errorMsg.includes('verify') && (
-          <TouchableOpacity style={styles.verifyBtn}>
+          <TouchableOpacity style={styles.verifyBtn} onPress={() => router.push('/verification' as any)}>
             <Text style={styles.verifyBtnText}>Verify Now</Text>
           </TouchableOpacity>
         )}
