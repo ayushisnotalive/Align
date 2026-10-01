@@ -87,28 +87,26 @@ export default function Step2Photos() {
         let finalKey = `photos/${fileName}`;
 
         try {
-          const formData = new FormData();
-          formData.append('file', {
-            uri,
-            name: `photo_${i}.jpg`,
-            type: 'image/jpeg',
-          } as any);
+          const res = await fetch(uri);
+          const blob = await res.blob();
 
           const { error: uploadErr } = await supabase.storage
             .from('photos')
-            .upload(fileName, formData, { contentType: 'image/jpeg', upsert: true });
+            .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
 
-          if (!uploadErr) {
-            const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
-            if (urlData?.publicUrl) {
-              finalKey = urlData.publicUrl;
-            }
+          if (uploadErr) {
+            logger.warn('Step2Photos', 'Storage upload error:', uploadErr.message);
+          }
+
+          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
+          if (urlData?.publicUrl) {
+            finalKey = urlData.publicUrl;
           }
         } catch (e) {
           logger.warn('Step2Photos', 'Storage upload caught:', e);
         }
 
-        if (i === selectedIconIndex) {
+        if (i === selectedIconIndex || (!chosenAvatarUrl && i === 0)) {
           chosenAvatarUrl = getPhotoUrl(finalKey, 0);
         }
 

@@ -131,6 +131,17 @@ export default function PhotoManagerModal({
       setActionLoadingId(photoId);
       const { error } = await supabase.rpc('set_primary_photo', { p_photo_id: photoId });
       if (error) throw error;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const targetPhoto = photos.find(p => p.photo_id === photoId);
+      if (session?.user?.id && targetPhoto && targetPhoto.s3_key) {
+        const photoUrl = getPhotoUrl(targetPhoto.s3_key);
+        await supabase
+          .from('profile_details')
+          .upsert({ user_id: session.user.id, avatar_url: photoUrl }, { onConflict: 'user_id' });
+        if (onProfileIconChanged) onProfileIconChanged(photoUrl);
+      }
+
       await fetchInsights();
       Alert.alert('Primary Photo Updated', 'This photo is now your main primary image shown first to others!');
     } catch (err: any) {
@@ -155,6 +166,15 @@ export default function PhotoManagerModal({
 
       const { error } = await supabase.rpc('reorder_user_photos', { p_photo_ids: photoIds });
       if (error) throw error;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id && newPhotos[0]?.s3_key) {
+        const photoUrl = getPhotoUrl(newPhotos[0].s3_key);
+        await supabase
+          .from('profile_details')
+          .upsert({ user_id: session.user.id, avatar_url: photoUrl }, { onConflict: 'user_id' });
+        if (onProfileIconChanged) onProfileIconChanged(photoUrl);
+      }
 
       await fetchInsights();
     } catch (err: any) {
@@ -212,34 +232,24 @@ export default function PhotoManagerModal({
       const ext = mimeType.includes('png') ? 'png' : 'jpg';
       const fileName = `${session.user.id}/${Date.now()}_slot${nextPosition}.${ext}`;
 
-      // Upload directly to Supabase storage bucket 'photos' using FormData
-      let finalKey = `photos/${fileName}`;
-      try {
-        const formData = new FormData();
-        formData.append('file', {
-          uri: localUri,
-          name: `upload.${ext}`,
-          type: mimeType,
-        } as any);
+      // Upload directly to Supabase storage bucket 'photos' using binary Blob
+      const res = await fetch(localUri);
+      const blob = await res.blob();
 
-        const { error: storageErr } = await supabase.storage
-          .from('photos')
-          .upload(fileName, formData, {
-            contentType: mimeType,
-            upsert: true,
-          });
+      const { error: storageErr } = await supabase.storage
+        .from('photos')
+        .upload(fileName, blob, {
+          contentType: mimeType,
+          upsert: true,
+        });
 
-        if (!storageErr) {
-          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
-          if (urlData?.publicUrl) {
-            finalKey = urlData.publicUrl;
-          }
-        } else {
-          logger.warn('PhotoManager', 'Storage upload notice:', storageErr.message);
-        }
-      } catch (storageEx: any) {
-        logger.warn('PhotoManager', 'Storage upload caught:', storageEx.message);
+      if (storageErr) {
+        logger.warn('PhotoManager', 'Storage upload error:', storageErr.message);
+        throw new Error(storageErr.message);
       }
+
+      const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
+      const finalKey = urlData?.publicUrl || fileName;
 
       const { data: mediaData, error: mediaErr } = await supabase
         .from('media')
@@ -265,8 +275,8 @@ export default function PhotoManagerModal({
 
       if (photoErr) throw photoErr;
 
-      // If it's their very first photo, also make it default profile icon
-      if (nextPosition === 1) {
+      // If it's their very first photo (or no existing photos), also make it default profile icon
+      if (nextPosition === 1 || photos.length === 0) {
         const photoUrl = getPhotoUrl(finalKey);
         await supabase
           .from('profile_details')

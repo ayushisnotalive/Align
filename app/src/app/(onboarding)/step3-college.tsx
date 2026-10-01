@@ -94,21 +94,19 @@ export default function Step3College() {
         let finalKey = `college_id/${fileName}`;
 
         try {
-          const formData = new FormData();
-          formData.append('file', {
-            uri: idPhoto,
-            name: `id_${Date.now()}.jpg`,
-            type: 'image/jpeg',
-          } as any);
+          const res = await fetch(idPhoto);
+          const blob = await res.blob();
 
           const { error: uploadErr } = await supabase.storage
             .from('photos')
-            .upload(fileName, formData, { contentType: 'image/jpeg', upsert: true });
+            .upload(fileName, blob, { contentType: 'image/jpeg', upsert: true });
 
-          if (!uploadErr) {
-            const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
-            if (urlData?.publicUrl) finalKey = urlData.publicUrl;
+          if (uploadErr) {
+            logger.warn('Step3College', 'Storage upload error:', uploadErr.message);
           }
+
+          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
+          if (urlData?.publicUrl) finalKey = urlData.publicUrl;
         } catch (e) {
           logger.warn('Step3College', 'Storage upload caught:', e);
         }

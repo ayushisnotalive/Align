@@ -29,7 +29,8 @@ export default function Step1Profile() {
   const [genderId, setGenderId] = useState(2);
   const [pronoun, setPronoun] = useState('she/her');
   const [bio, setBio] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState(DEFAULT_AVATAR);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [hasSelectedCustomAvatar, setHasSelectedCustomAvatar] = useState(false);
   const [avatarModalOpen, setAvatarModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -75,7 +76,7 @@ export default function Step1Profile() {
         email: session.user.email
       }).eq('user_id', session.user.id);
 
-      // Upsert profile_details
+      // Upsert profile_details - only save avatar_url if user explicitly picked one
       await supabase.from('profile_details').upsert({
         user_id: session.user.id,
         legal_first_name: firstName.trim(),
@@ -84,7 +85,7 @@ export default function Step1Profile() {
         gender_identity: selectedGender,
         pronouns: pronoun,
         bio: bio.trim(),
-        avatar_url: avatarUrl,
+        avatar_url: hasSelectedCustomAvatar ? avatarUrl : null,
       }, { onConflict: 'user_id' });
 
       router.push('/(onboarding)/step2-photos' as any);
@@ -108,7 +109,7 @@ export default function Step1Profile() {
           onPress={() => setAvatarModalOpen(true)}
           activeOpacity={0.8}
         >
-          <Image source={{ uri: avatarUrl }} style={styles.avatarPreview} />
+          <Image source={{ uri: avatarUrl || DEFAULT_AVATAR }} style={styles.avatarPreview} />
           <View style={styles.cameraBadge}>
             <Ionicons name="camera" size={16} color="#fff" />
           </View>
@@ -227,8 +228,11 @@ export default function Step1Profile() {
       <AvatarPickerModal
         visible={avatarModalOpen}
         onClose={() => setAvatarModalOpen(false)}
-        onSelect={(url) => setAvatarUrl(url)}
-        currentAvatarUrl={avatarUrl}
+        onSelect={(url) => {
+          setAvatarUrl(url);
+          setHasSelectedCustomAvatar(true);
+        }}
+        currentAvatarUrl={avatarUrl || undefined}
       />
     </ScrollView>
   );

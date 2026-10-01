@@ -32,7 +32,8 @@ export function getPhotoUrl(s3_key?: string | null, fallbackIndex?: number): str
 
   // Supabase storage bucket key
   if (s3_key.startsWith('photos/')) {
-    return `${SUPABASE_STORAGE_URL}/${s3_key}`;
+    const subPath = s3_key.substring(7);
+    return `${SUPABASE_STORAGE_URL}/${subPath}`;
   }
 
   // Legacy/seeded keys that are not on S3 - map deterministically to curated portrait photos
@@ -51,7 +52,7 @@ export function getPhotoUrl(s3_key?: string | null, fallbackIndex?: number): str
 
 /**
  * Build the display URL for a user's primary photo or avatar.
- * Falls back to a stock image when no photos exist.
+ * Prioritizes user's uploaded real photos over default/generated stock avatars.
  */
 export function getImageUrl(profile?: { 
   photos?: { s3_key?: string }[]; 
@@ -62,6 +63,26 @@ export function getImageUrl(profile?: {
 } | null): string {
   if (!profile) return FALLBACK_AVATAR;
 
+  // 1. User's uploaded photos take highest priority!
+  if (Array.isArray(profile.photos) && profile.photos.length > 0 && profile.photos[0]?.s3_key) {
+    return getPhotoUrl(profile.photos[0].s3_key);
+  }
+
+  // 2. Direct photo s3_key
+  if (profile.s3_key) {
+    return getPhotoUrl(profile.s3_key);
+  }
+
+  // 3. User chosen avatar (if not default unsplash model)
+  if (profile.avatar_url && !profile.avatar_url.includes('images.unsplash.com')) {
+    return getPhotoUrl(profile.avatar_url);
+  }
+
+  if (profile.details?.avatar_url && !profile.details.avatar_url.includes('images.unsplash.com')) {
+    return getPhotoUrl(profile.details.avatar_url);
+  }
+
+  // 4. Any avatar url
   if (profile.avatar_url) {
     return getPhotoUrl(profile.avatar_url);
   }
@@ -72,14 +93,6 @@ export function getImageUrl(profile?: {
 
   if (profile.image) {
     return getPhotoUrl(profile.image);
-  }
-
-  if (profile.s3_key) {
-    return getPhotoUrl(profile.s3_key);
-  }
-
-  if (Array.isArray(profile.photos) && profile.photos.length > 0 && profile.photos[0]?.s3_key) {
-    return getPhotoUrl(profile.photos[0].s3_key);
   }
 
   return FALLBACK_AVATAR;

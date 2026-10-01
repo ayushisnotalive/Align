@@ -118,7 +118,15 @@ export default function Profile() {
 
   const displayName = profile?.first_name || details?.display_nickname || 'Student';
   const displayAge = calculateAge();
-  const displayAvatar = details?.avatar_url || DEFAULT_AVATAR;
+
+  // Real uploaded photo in slot 1 takes top priority over default stock avatars
+  const primaryUploadedPhoto = userPhotos.length > 0 && userPhotos[0]?.s3_key
+    ? getPhotoUrl(userPhotos[0].s3_key)
+    : null;
+
+  const displayAvatar = (details?.avatar_url && !details.avatar_url.includes('images.unsplash.com'))
+    ? details.avatar_url
+    : (primaryUploadedPhoto || details?.avatar_url || DEFAULT_AVATAR);
   const isVerified = profile?.is_blue_tick || details?.is_verified;
   const collegeName = details?.university_college || profile?.school || 'College Student';
 
