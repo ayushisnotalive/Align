@@ -50,12 +50,67 @@ export default function PhotoManagerModal({
     try {
       setLoading(true);
       const { data, error } = await supabase.rpc('get_user_photo_insights');
-      if (error) throw error;
+      if (error) {
+        logger.warn('PhotoManager', 'get_user_photo_insights failed, falling back:', error.message);
+      }
 
-      if (data) {
+      if (data && Array.isArray(data.photos) && data.photos.length > 0) {
         setIsPro(data.is_pro ?? false);
         setTotalLikes(data.total_likes ?? 0);
-        setPhotos(data.photos || []);
+        setPhotos(data.photos);
+        return;
+      }
+
+      // Direct fallback to photos table with media join
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user?.id) {
+        const { data: directPhotos } = await supabase
+          .from('photos')
+          .select('id, position, likes_count, impressions_count, media(id, s3_key)')
+          .eq('user_id', session.user.id)
+          .order('position', { ascending: true });
+
+        if (directPhotos && directPhotos.length > 0) {
+          setPhotos(
+            directPhotos.map((p: any) => ({
+              photo_id: p.id,
+              media_id: p.media?.id || p.id,
+              s3_key: p.media?.s3_key || '',
+              position: p.position,
+              likes_count: p.likes_count || 0,
+              impressions_count: p.impressions_count || 0,
+              like_percentage: 0,
+              is_best_performing: false,
+            }))
+          );
+          return;
+        }
+
+        // Secondary fallback to media table
+        const { data: mediaRows } = await supabase
+          .from('media')
+          .select('id, s3_key')
+          .eq('owner_id', session.user.id)
+          .eq('kind', 'profile_photo')
+          .is('deleted_at', null)
+          .order('created_at', { ascending: true });
+
+        if (mediaRows && mediaRows.length > 0) {
+          setPhotos(
+            mediaRows.map((m: any, idx: number) => ({
+              photo_id: m.id,
+              media_id: m.id,
+              s3_key: m.s3_key,
+              position: idx + 1,
+              likes_count: 0,
+              impressions_count: 0,
+              like_percentage: 0,
+              is_best_performing: false,
+            }))
+          );
+        } else {
+          setPhotos([]);
+        }
       }
     } catch (err: any) {
       logger.warn('PhotoManager', 'Failed to fetch photo insights:', err?.message || err);
@@ -147,32 +202,54 @@ export default function PhotoManagerModal({
       if (result.canceled || !result.assets || result.assets.length === 0) return;
 
       setUploading(true);
-      const localUri = result.assets[0].uri;
+      const asset = result.assets[0];
+      const localUri = asset.uri;
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.user?.id) return;
 
-      let blob: Blob | null = null;
-      try {
-        const res = await fetch(localUri);
-        blob = await res.blob();
-      } catch (e) {
-        // fallback
-      }
-
       const nextPosition = photos.length + 1;
-      const s3Key = `photos/${session.user.id}/${Date.now()}_slot${nextPosition}.jpg`;
-      const sizeBytes = blob ? blob.size : 20480;
-      const mimeType = blob?.type || 'image/jpeg';
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const ext = mimeType.includes('png') ? 'png' : 'jpg';
+      const fileName = `${session.user.id}/${Date.now()}_slot${nextPosition}.${ext}`;
+
+      // Upload directly to Supabase storage bucket 'photos' using FormData
+      let finalKey = `photos/${fileName}`;
+      try {
+        const formData = new FormData();
+        formData.append('file', {
+          uri: localUri,
+          name: `upload.${ext}`,
+          type: mimeType,
+        } as any);
+
+        const { error: storageErr } = await supabase.storage
+          .from('photos')
+          .upload(fileName, formData, {
+            contentType: mimeType,
+            upsert: true,
+          });
+
+        if (!storageErr) {
+          const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
+          if (urlData?.publicUrl) {
+            finalKey = urlData.publicUrl;
+          }
+        } else {
+          logger.warn('PhotoManager', 'Storage upload notice:', storageErr.message);
+        }
+      } catch (storageEx: any) {
+        logger.warn('PhotoManager', 'Storage upload caught:', storageEx.message);
+      }
 
       const { data: mediaData, error: mediaErr } = await supabase
         .from('media')
         .insert({
           owner_id: session.user.id,
           kind: 'profile_photo',
-          bucket: 'align-media',
-          s3_key: s3Key,
+          bucket: 'photos',
+          s3_key: finalKey,
           mime_type: mimeType,
-          size_bytes: sizeBytes,
+          size_bytes: asset.fileSize || 20480,
           moderation_status: 'ok',
         })
         .select()
@@ -190,7 +267,7 @@ export default function PhotoManagerModal({
 
       // If it's their very first photo, also make it default profile icon
       if (nextPosition === 1) {
-        const photoUrl = getPhotoUrl(s3Key);
+        const photoUrl = getPhotoUrl(finalKey);
         await supabase
           .from('profile_details')
           .upsert({ user_id: session.user.id, avatar_url: photoUrl }, { onConflict: 'user_id' });

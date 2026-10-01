@@ -90,25 +90,36 @@ export default function Step3College() {
 
       // If photo was chosen, upload and insert into media table
       if (isVerifyingNow && idPhoto) {
-        let blob: Blob | null = null;
-        try {
-          const res = await fetch(idPhoto);
-          blob = await res.blob();
-        } catch (e) {
-          logger.warn('Step3College', 'Blob conversion failed:', e);
-        }
+        const fileName = `${session.user.id}/id_${Date.now()}.jpg`;
+        let finalKey = `college_id/${fileName}`;
 
-        const s3Key = `college_id/${session.user.id}/${Date.now()}.jpg`;
-        const sizeBytes = blob ? blob.size : 10240;
-        const mimeType = blob?.type || 'image/jpeg';
+        try {
+          const formData = new FormData();
+          formData.append('file', {
+            uri: idPhoto,
+            name: `id_${Date.now()}.jpg`,
+            type: 'image/jpeg',
+          } as any);
+
+          const { error: uploadErr } = await supabase.storage
+            .from('photos')
+            .upload(fileName, formData, { contentType: 'image/jpeg', upsert: true });
+
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
+            if (urlData?.publicUrl) finalKey = urlData.publicUrl;
+          }
+        } catch (e) {
+          logger.warn('Step3College', 'Storage upload caught:', e);
+        }
 
         const { data: mediaData, error: mediaErr } = await supabase.from('media').insert({
           owner_id: session.user.id,
           kind: 'college_id',
-          bucket: 'align-media',
-          s3_key: s3Key,
-          mime_type: mimeType,
-          size_bytes: sizeBytes,
+          bucket: 'photos',
+          s3_key: finalKey,
+          mime_type: 'image/jpeg',
+          size_bytes: 20480,
           moderation_status: 'ok'
         }).select().single();
 

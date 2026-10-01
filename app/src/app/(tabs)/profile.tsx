@@ -33,13 +33,13 @@ export default function Profile() {
     }
 
     try {
-      const [pRes, dRes, privRes, adminRes, dsRes, photosRes] = await Promise.all([
+      const [pRes, dRes, privRes, adminRes, dsRes, insightsRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', session.user.id).maybeSingle(),
         supabase.from('profile_details').select('*').eq('user_id', session.user.id).maybeSingle(),
         supabase.from('profile_private').select('*').eq('user_id', session.user.id).maybeSingle(),
         supabase.rpc('check_is_admin'),
         supabase.from('discovery_settings').select('*').eq('user_id', session.user.id).maybeSingle(),
-        supabase.from('photos').select('id, position, likes_count, media:media_id(s3_key)').eq('user_id', session.user.id).order('position', { ascending: true })
+        supabase.rpc('get_user_photo_insights')
       ]);
 
       if (pRes.data) setProfile(pRes.data);
@@ -49,7 +49,26 @@ export default function Profile() {
         setShowMe(dsRes.data.show_me ?? true);
         setDistance(dsRes.data.radius_km ?? 50);
       }
-      if (photosRes.data) setUserPhotos(photosRes.data);
+      if (insightsRes.data?.photos && Array.isArray(insightsRes.data.photos) && insightsRes.data.photos.length > 0) {
+        setUserPhotos(insightsRes.data.photos);
+      } else {
+        const { data: directPhotos } = await supabase
+          .from('photos')
+          .select('id, position, likes_count, media(id, s3_key)')
+          .eq('user_id', session.user.id)
+          .order('position', { ascending: true });
+        if (directPhotos && directPhotos.length > 0) {
+          setUserPhotos(directPhotos.map((p: any) => ({
+            id: p.id,
+            photo_id: p.id,
+            position: p.position,
+            likes_count: p.likes_count || 0,
+            s3_key: p.media?.s3_key || '',
+          })));
+        } else {
+          setUserPhotos([]);
+        }
+      }
     } catch (err: any) {
       logger.warn('Profile', 'Failed to fetch profile data:', err?.message || err);
     } finally {
@@ -225,8 +244,8 @@ export default function Profile() {
           {userPhotos.length > 0 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingVertical: 4 }}>
               {userPhotos.map((p, idx) => {
-                const s3Key = p.media?.s3_key;
-                const photoUrl = s3Key ? getPhotoUrl(s3Key) : null;
+                const s3Key = p.s3_key || p.media?.s3_key;
+                const photoUrl = getPhotoUrl(s3Key, idx);
                 const isPrimary = p.position === 1;
 
                 return (
@@ -498,7 +517,7 @@ export default function Profile() {
         onClose={() => setAvatarModalVisible(false)}
         onSelect={handleAvatarSelect}
         currentAvatarUrl={details?.avatar_url}
-        userPhotos={userPhotos.map((p) => (p.media?.s3_key ? getPhotoUrl(p.media.s3_key) : null)).filter(Boolean) as string[]}
+        userPhotos={userPhotos.map((p, idx) => getPhotoUrl(p.s3_key || p.media?.s3_key, idx)).filter(Boolean) as string[]}
       />
 
       {/* Photo Manager Modal */}

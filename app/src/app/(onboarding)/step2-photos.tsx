@@ -8,6 +8,7 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { Ionicons } from '@expo/vector-icons';
 import { logger } from '../../utils/logger';
 import { DEFAULT_AVATAR } from '../../constants/avatars';
+import { getPhotoUrl } from '../../utils/media';
 
 export default function Step2Photos() {
   const router = useRouter();
@@ -74,35 +75,51 @@ export default function Step2Photos() {
     setLoading(true);
 
     try {
-      let chosenAvatarKey = '';
+      let chosenAvatarUrl = '';
 
-      // For each photo, upload to S3 and save to DB
+      // Clean existing photos for user before re-inserting during onboarding to prevent unique index conflicts
+      await supabase.from('photos').delete().eq('user_id', session.user.id);
+
+      // For each photo, upload to Supabase storage and save to DB
       for (let i = 0; i < photos.length; i++) {
         const uri = photos[i];
-        let blob: Blob | null = null;
+        const fileName = `${session.user.id}/${Date.now()}_step2_${i}.jpg`;
+        let finalKey = `photos/${fileName}`;
+
         try {
-          const res = await fetch(uri);
-          blob = await res.blob();
-        } catch (fetchErr) {
-          logger.warn('Step2Photos', 'Could not convert image to blob:', fetchErr);
+          const formData = new FormData();
+          formData.append('file', {
+            uri,
+            name: `photo_${i}.jpg`,
+            type: 'image/jpeg',
+          } as any);
+
+          const { error: uploadErr } = await supabase.storage
+            .from('photos')
+            .upload(fileName, formData, { contentType: 'image/jpeg', upsert: true });
+
+          if (!uploadErr) {
+            const { data: urlData } = supabase.storage.from('photos').getPublicUrl(fileName);
+            if (urlData?.publicUrl) {
+              finalKey = urlData.publicUrl;
+            }
+          }
+        } catch (e) {
+          logger.warn('Step2Photos', 'Storage upload caught:', e);
         }
-        
-        let finalKey = `photos/${session.user.id}/${Date.now()}_${i}.jpg`;
-        const sizeBytes = blob ? blob.size : 10240;
-        const mimeType = blob?.type || 'image/jpeg';
 
         if (i === selectedIconIndex) {
-          chosenAvatarKey = finalKey;
+          chosenAvatarUrl = getPhotoUrl(finalKey, 0);
         }
 
         // Insert into media
         const { data: mediaData, error: mediaErr } = await supabase.from('media').insert({
           owner_id: session.user.id,
           kind: 'profile_photo',
-          bucket: 'align-media',
+          bucket: 'photos',
           s3_key: finalKey,
-          mime_type: mimeType,
-          size_bytes: sizeBytes,
+          mime_type: 'image/jpeg',
+          size_bytes: 20480,
           moderation_status: 'ok'
         }).select().single();
 
@@ -120,11 +137,10 @@ export default function Step2Photos() {
       }
 
       // If user uploaded photos, set their chosen photo (default first photo) as profile icon
-      if (chosenAvatarKey) {
-        const avatarUrl = `https://align-media.s3.amazonaws.com/${chosenAvatarKey}`;
+      if (chosenAvatarUrl) {
         await supabase.from('profile_details').upsert({
           user_id: session.user.id,
-          avatar_url: avatarUrl
+          avatar_url: chosenAvatarUrl
         }, { onConflict: 'user_id' });
       }
 

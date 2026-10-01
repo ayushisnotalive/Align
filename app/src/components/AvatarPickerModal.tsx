@@ -43,35 +43,46 @@ export default function AvatarPickerModal({
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user?.id) return;
 
+        // Try get_user_photo_insights first
+        const { data: insightsData } = await supabase.rpc('get_user_photo_insights');
+        if (insightsData?.photos && Array.isArray(insightsData.photos) && insightsData.photos.length > 0) {
+          const urls = insightsData.photos
+            .map((p: any, idx: number) => (p.s3_key ? getPhotoUrl(p.s3_key, idx) : null))
+            .filter(Boolean) as string[];
+          if (urls.length > 0) {
+            setUploadedPhotos(urls);
+            return;
+          }
+        }
+
         const { data, error } = await supabase
           .from('photos')
-          .select('id, position, media:media_id(s3_key)')
+          .select('id, position, media(id, s3_key)')
           .eq('user_id', session.user.id)
           .order('position', { ascending: true });
 
-        if (error) {
-          // If RLS or relationship, fallback to media
-          const { data: mediaData } = await supabase
-            .from('media')
-            .select('s3_key')
-            .eq('owner_id', session.user.id)
-            .eq('kind', 'profile_photo')
-            .is('deleted_at', null);
-
-          if (mediaData && mediaData.length > 0) {
-            setUploadedPhotos(mediaData.map((m: any) => getPhotoUrl(m.s3_key)));
-          }
-          return;
-        }
-
-        if (data && data.length > 0) {
+        if (!error && data && data.length > 0) {
           const urls = data
-            .map((p: any) => {
+            .map((p: any, idx: number) => {
               const key = p.media?.s3_key;
-              return key ? getPhotoUrl(key) : null;
+              return key ? getPhotoUrl(key, idx) : null;
             })
             .filter(Boolean) as string[];
           setUploadedPhotos(urls);
+          return;
+        }
+
+        // Fallback to media table
+        const { data: mediaData } = await supabase
+          .from('media')
+          .select('s3_key')
+          .eq('owner_id', session.user.id)
+          .eq('kind', 'profile_photo')
+          .is('deleted_at', null)
+          .order('created_at', { ascending: true });
+
+        if (mediaData && mediaData.length > 0) {
+          setUploadedPhotos(mediaData.map((m: any, idx: number) => getPhotoUrl(m.s3_key, idx)));
         }
       } catch (e) {
         // non-blocking
